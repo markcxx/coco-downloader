@@ -70,6 +70,7 @@ export class QQMp3Provider implements MusicProvider {
   }
 
   async getPlayInfo(id: string, extra?: unknown): Promise<PlayInfo> {
+    void extra;
     try {
       const { data } = await axios.get<DetailResponse>('https://api.qqmp3.vip/api/kw.php', {
         headers: HEADERS,

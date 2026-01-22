@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const provider = getProvider(providerName);
     const info = await provider.getPlayInfo(id);
     return NextResponse.json(info);
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to get url' }, { status: 500 });
   }
 }

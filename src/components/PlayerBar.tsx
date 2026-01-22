@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -54,7 +55,14 @@ export function PlayerBar({
             isPlaying && "animate-spin-slow"
           )} style={{ animationDuration: '8s' }}>
             {currentMusic.cover ? (
-              <img src={currentMusic.cover} alt={currentMusic.title} className="w-full h-full object-cover" />
+              <Image
+                src={currentMusic.cover}
+                alt={currentMusic.title}
+                fill
+                sizes="48px"
+                className="object-cover"
+                unoptimized
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-sky-100 dark:bg-sky-900 text-sky-500 dark:text-sky-400 font-bold">
                 {currentMusic.title[0]}

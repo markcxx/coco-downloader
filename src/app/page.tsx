@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Search, Loader2, Play, Pause, Download, Disc, Check, Music, Trash2, Flame, Zap, ShieldCheck, Headphones } from "lucide-react";
+import Image from "next/image";
+import { Search, Loader2, Play, Pause, Download, Check, Music, Trash2, Flame, Zap, ShieldCheck, Headphones } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { MusicItem } from "@/types/music";
@@ -48,7 +49,7 @@ export default function Home() {
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, []);
+  }, [playing]);
 
   // Sync Volume
   useEffect(() => {
@@ -236,8 +237,10 @@ export default function Home() {
           <div className="flex justify-center mb-6 gap-3">
             {[
               { id: 'gequbao', name: '歌曲宝' },
+              { id: 'gequhai', name: '歌曲海' },
               { id: 'qqmp3', name: 'QQMP3' },
-              { id: 'migu', name: '咪咕' }
+              { id: 'migu', name: '咪咕' },
+              { id: 'livepoo', name: '力音' }
             ].map((p) => (
               <button
                 key={p.id}
@@ -426,7 +429,14 @@ export default function Home() {
                             className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 overflow-hidden flex-shrink-0 cursor-pointer relative group/cover"
                           >
                             {item.cover ? (
-                              <img src={item.cover} alt="" className="w-full h-full object-cover" />
+                              <Image
+                                src={item.cover}
+                                alt={item.title}
+                                fill
+                                sizes="40px"
+                                className="object-cover"
+                                unoptimized
+                              />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-slate-400 dark:text-slate-500">
                                 <Music className="w-5 h-5" />

@@ -1,4 +1,4 @@
-import { Music, Code, Mail } from "lucide-react";
+import { Code, Mail } from "lucide-react";
 
 export default function AboutPage() {
   return (

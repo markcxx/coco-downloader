@@ -1,23 +1,19 @@
 'use client';
 
 import Link from "next/link";
-import { Music, User, Github, Sun, Moon } from "lucide-react";
-import { useState, useEffect, MouseEvent } from "react";
+import Image from "next/image";
+import { Github, Sun, Moon } from "lucide-react";
+import { useState, MouseEvent } from "react";
 import { useTheme } from "next-themes";
 import DeveloperPanel from "./DeveloperPanel";
 
 export function Navbar() {
   const [showDevPanel, setShowDevPanel] = useState(false);
   const { theme, setTheme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState<boolean>(false);
-
-  useEffect(() => {
-     
-    setMounted(true);
-  }, []);
+  const currentTheme = resolvedTheme ?? theme ?? "light";
 
   const toggleTheme = (event: MouseEvent<HTMLButtonElement>) => {
-    const isDark = resolvedTheme === 'dark';
+    const isDark = currentTheme === 'dark';
     const newTheme = isDark ? 'light' : 'dark';
 
     // Check if View Transitions API is supported
@@ -60,7 +56,7 @@ export function Navbar() {
     <>
       <nav className="fixed top-[37px] left-0 right-0 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-sky-100 dark:border-slate-800 z-50 px-4 md:px-8 flex items-center justify-between transition-colors duration-300">
         <Link href="/" className="flex items-center gap-2 group">
-          <img src="/images/cherry-logo.svg" alt="Logo" className="h-10 w-auto transition-transform" />
+          <Image src="/images/cherry-logo.svg" alt="Logo" width={40} height={40} className="h-10 w-auto transition-transform" />
         </Link>
         
         <div className="flex items-center gap-4">
@@ -80,19 +76,17 @@ export function Navbar() {
             <Github className="w-5 h-5" />
           </a>
 
-          {mounted && (
-            <button
-              onClick={toggleTheme}
-              className="p-2 text-slate-400 dark:text-slate-500 hover:text-sky-500 dark:hover:text-sky-400 hover:bg-sky-50 dark:hover:bg-slate-800 rounded-full transition-all duration-300 cursor-pointer"
-              aria-label="Toggle theme"
-            >
-              {resolvedTheme === 'dark' ? (
-                <Moon className="w-5 h-5" />
-              ) : (
-                <Sun className="w-5 h-5" />
-              )}
-            </button>
-          )}
+          <button
+            onClick={toggleTheme}
+            className="p-2 text-slate-400 dark:text-slate-500 hover:text-sky-500 dark:hover:text-sky-400 hover:bg-sky-50 dark:hover:bg-slate-800 rounded-full transition-all duration-300 cursor-pointer"
+            aria-label="Toggle theme"
+          >
+            {currentTheme === 'dark' ? (
+              <Moon className="w-5 h-5" />
+            ) : (
+              <Sun className="w-5 h-5" />
+            )}
+          </button>
         </div>
       </nav>
 
