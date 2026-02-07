@@ -1,5 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
+import axios from "axios";
+import { Readable } from "stream";
 import { getProvider } from "@/lib/providers";
+
+const DOWNLOAD_TIMEOUT = 30000;
+const RETRY_LIMIT = 2;
+const RETRY_DELAY = 600;
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableError(error: unknown) {
+  const err = error as { code?: string; message?: string };
+  const code = err?.code || "";
+  const message = err?.message || "";
+  return (
+    code === "ETIMEDOUT" ||
+    code === "ECONNABORTED" ||
+    code === "UND_ERR_CONNECT_TIMEOUT" ||
+    message.toLowerCase().includes("timeout")
+  );
+}
+
+async function requestAudioStream(url: string, attempt = 0) {
+  try {
+    const response = await axios.get(url, {
+      responseType: "stream",
+      timeout: DOWNLOAD_TIMEOUT,
+      maxRedirects: 5,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
+      validateStatus: () => true,
+    });
+
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`Upstream error: ${response.status}`);
+    }
+
+    const stream = Readable.toWeb(response.data) as ReadableStream<Uint8Array>;
+    return { stream, headers: response.headers as Record<string, string | undefined> };
+  } catch (error) {
+    if (attempt < RETRY_LIMIT && isRetryableError(error)) {
+      await delay(RETRY_DELAY * (attempt + 1));
+      return requestAudioStream(url, attempt + 1);
+    }
+    throw error;
+  }
+}
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -21,24 +71,14 @@ export async function GET(request: NextRequest) {
 
     // 2. 请求音频流
     // 使用原生 fetch 以获取标准的 ReadableStream，完美兼容 NextResponse
-    // 注意：不要设置 Referer 为 gequbao，因为目标 CDN 可能拒绝跨域 Referer。
-    // 大多数 CDN 直链不带 Referer 即可访问。
-    const response = await fetch(playInfo.url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-      referrerPolicy: 'no-referrer'
-    });
-
-    if (!response.ok) {
-      throw new Error(`Upstream error: ${response.status}`);
-    }
+    const { stream, headers: upstreamHeaders } = await requestAudioStream(playInfo.url);
 
     // 3. 构建响应头
     const headers = new Headers();
-    headers.set("Content-Type", response.headers.get("content-type") || "audio/mpeg");
-    
-    const contentLength = response.headers.get("content-length");
+    const contentType = upstreamHeaders["content-type"];
+    headers.set("Content-Type", contentType || "audio/mpeg");
+
+    const contentLength = upstreamHeaders["content-length"];
     if (contentLength) {
       headers.set("Content-Length", contentLength);
     }
@@ -51,7 +91,7 @@ export async function GET(request: NextRequest) {
     headers.set("Content-Disposition", `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
 
     // 4. 返回流
-    return new NextResponse(response.body, {
+    return new NextResponse(stream, {
       status: 200,
       headers,
     });

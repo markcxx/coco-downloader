@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { Search, Loader2, Play, Pause, Download, Check, Music, Trash2, Flame, Zap, ShieldCheck, Headphones, ListMusic } from "lucide-react";
+import { Search, Loader2, Play, Pause, Download, Check, Music, Trash2, Flame, Zap, ShieldCheck, Headphones, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { MusicItem } from "@/types/music";
@@ -10,6 +10,41 @@ import { PlayerBar } from "@/components/PlayerBar";
 import { DownloadDrawer } from "@/components/DownloadDrawer";
 import { DownloadTask } from "@/types/download";
 import axios from "axios";
+
+const SourceLinkButton = ({ item }: { item: MusicItem }) => {
+  const [loading, setLoading] = useState(false);
+
+  const handleClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (loading) return;
+    
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/url?id=${item.id}&provider=${item.provider || 'gequbao'}`);
+      const data = await res.json();
+      if (data.url) {
+        window.open(data.url, '_blank');
+      } else {
+        alert('无法获取源链接');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('获取链接失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      className="p-2 text-slate-400 dark:text-slate-500 hover:text-sky-500 dark:hover:text-sky-400 hover:bg-sky-50 dark:hover:bg-slate-800 rounded-full transition-colors cursor-pointer flex items-center justify-center"
+      title="打开源文件链接"
+    >
+      {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ExternalLink className="w-5 h-5" />}
+    </button>
+  );
+};
 
 export default function Home() {
   const [query, setQuery] = useState("");
@@ -176,10 +211,11 @@ export default function Home() {
         t.id === task.id ? { ...t, status: 'completed', progress: 100 } : t
       ));
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
+      const errorMessage = err instanceof Error ? err.message : 'Download failed';
       setDownloadTasks(prev => prev.map(t => 
-        t.id === task.id ? { ...t, status: 'error', error: err.message || 'Download failed' } : t
+        t.id === task.id ? { ...t, status: 'error', error: errorMessage } : t
       ));
     }
   };
@@ -332,7 +368,11 @@ export default function Home() {
               { id: 'qq', name: 'QQ音乐' },
               { id: 'qqmp3', name: 'QQMP3' },
               { id: 'migu', name: '咪咕' },
-              { id: 'livepoo', name: '力音' }
+              { id: 'livepoo', name: '力音' },
+              { id: 'jianbin-netease', name: '煎饼-网易' },
+              { id: 'jianbin-qq', name: '煎饼-qq' },
+              { id: 'jianbin-kugou', name: '煎饼-酷狗' },
+              { id: 'jianbin-kuwo', name: '煎饼-酷我' }
             ].map((p) => (
               <button
                 key={p.id}
@@ -562,7 +602,8 @@ export default function Home() {
                           {item.artist}
                         </div>
 
-                        <div className="flex justify-end pr-2 md:pr-2">
+                        <div className="flex justify-end pr-2 md:pr-2 gap-2">
+                          <SourceLinkButton item={item} />
                           <button
                             onClick={(e) => { e.stopPropagation(); downloadOne(item); }}
                             className="p-2 text-slate-400 dark:text-slate-500 hover:text-sky-500 dark:hover:text-sky-400 hover:bg-sky-50 dark:hover:bg-slate-800 rounded-full transition-colors cursor-pointer"
