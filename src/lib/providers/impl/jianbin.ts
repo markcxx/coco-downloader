@@ -138,7 +138,7 @@ export class JianbinProvider implements MusicProvider {
     }
   }
 
-  async getPlayInfo(id: string): Promise<PlayInfo> {
+  async getPlayInfo(id: string, quality?: 'standard' | 'high' | 'lossless'): Promise<PlayInfo> {
     try {
       const url = normalizeIdToUrl(id);
       if (!url) throw new Error('Invalid id');

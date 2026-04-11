@@ -9,7 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@lobehub/ui": "^4.20.1",
+    "@lobehub/ui": "^4.38.4",
     "antd": "^6.2.0",
     "antd-style": "^4.1.0",
     "axios": "^1.13.2",
@@ -33,5 +33,11 @@
     "eslint-config-next": "16.1.2",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "@emoji-mart/react": {
+      "react": "^19.0.0",
+      "react-dom": "^19.0.0"
+    }
   }
 }

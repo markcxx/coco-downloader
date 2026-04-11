@@ -1,4 +1,4 @@
-name: Build Docker Image and Export as Artifact
+name: Build and Push Docker Image to GHCR
 
 on:
   push:
@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: write
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
       image_name: ${{ steps.tag.outputs.image_name }}
@@ -36,16 +37,18 @@ jobs:
           TAG="pr-${{ github.event.number }}"
         fi
         echo "tag=${TAG}" >> $GITHUB_OUTPUT
-        # Use secrets for Docker Hub username, fallback to local name for artifact only if secrets missing (but push will fail)
-        echo "image_name=${{ secrets.DOCKERHUB_USERNAME }}/coco-downloader:${TAG}" >> $GITHUB_OUTPUT
-        echo "latest_image_name=${{ secrets.DOCKERHUB_USERNAME }}/coco-downloader:latest" >> $GITHUB_OUTPUT
+        # Use GHCR (GitHub Container Registry)
+        IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/coco-downloader:${TAG}"
+        echo "image_name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
+        echo "latest_image_name=ghcr.io/${{ github.repository_owner }}/coco-downloader:latest" >> $GITHUB_OUTPUT
 
-    - name: Login to Docker Hub
+    - name: Login to GitHub Container Registry
       if: github.event_name != 'pull_request'
       uses: docker/login-action@v3
       with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build and Push Docker image
       uses: docker/build-push-action@v5
@@ -74,29 +77,30 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📥 Download and Load Instructions:" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "1. **下载工件**: 在GitHub Actions页面点击 \`coco-downloader-${{ steps.tag.outputs.tag }}\` 下载tar文件" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "2. **加载和运行镜像**:" >> $GITHUB_STEP_SUMMARY
+        echo "1. **Pull from GHCR**:" >> $GITHUB_STEP_SUMMARY
         echo '```bash' >> $GITHUB_STEP_SUMMARY
-        echo "# 加载镜像到Docker" >> $GITHUB_STEP_SUMMARY
-        echo "docker load -i coco-downloader.tar" >> $GITHUB_STEP_SUMMARY
+        echo "docker pull ${{ steps.tag.outputs.image_name }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "# 运行容器" >> $GITHUB_STEP_SUMMARY
-        echo "docker run -d -p 3000:3000 --name coco-downloader ${{ steps.tag.outputs.image_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "docker run -d -p 3000:3000 -v \$(pwd)/data:/data --name coco-downloader ${{ steps.tag.outputs.image_name }}" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "# 检查运行状态" >> $GITHUB_STEP_SUMMARY
-        echo "curl http://localhost:3000" >> $GITHUB_STEP_SUMMARY
+        echo "2. **Or download artifact and load manually**:" >> $GITHUB_STEP_SUMMARY
+        echo '```bash' >> $GITHUB_STEP_SUMMARY
+        echo "# 下载工件后加载到Docker" >> $GITHUB_STEP_SUMMARY
+        echo "docker load -i coco-downloader.tar" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📋 镜像信息:" >> $GITHUB_STEP_SUMMARY
         echo "- **镜像名称**: ${{ steps.tag.outputs.image_name }}" >> $GITHUB_STEP_SUMMARY
         echo "- **构建分支/标签**: ${{ steps.tag.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
         echo "- **平台**: linux/amd64" >> $GITHUB_STEP_SUMMARY
+        echo "- **仓库**: GHCR (GitHub Container Registry)" >> $GITHUB_STEP_SUMMARY
 
   test:
     needs: build
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Download Docker image artifact
       uses: actions/download-artifact@v4
@@ -108,22 +112,22 @@ jobs:
       run: |
         # 加载镜像
         docker load -i /tmp/coco-downloader.tar
-        
+
         # 获取镜像名称
         IMAGE_NAME=$(docker images --format "table {{.Repository}}:{{.Tag}}" | grep coco-downloader | head -1)
         echo "Testing image: $IMAGE_NAME"
-        
+
         # 运行容器
         docker run -d -p 3000:3000 --name test-container $IMAGE_NAME
-        
+
         # 等待容器启动 (Next.js 可能需要一点时间编译/启动)
         sleep 30
-        
+
         # 测试根端点
         curl -v http://localhost:3000/ || exit 1
-        
+
         # 清理
         docker stop test-container
         docker rm test-container
-        
+
         echo "✅ Docker镜像测试通过!"

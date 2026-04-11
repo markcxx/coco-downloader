@@ -177,8 +177,7 @@ export class GequbaoProvider implements MusicProvider {
     }
   }
 
-  async getPlayInfo(id: string, extra?: unknown): Promise<PlayInfo> {
-    void extra;
+  async getPlayInfo(id: string, quality?: 'standard' | 'high' | 'lossless'): Promise<PlayInfo> {
     try {
       const pageUrl = `https://www.gequbao.com/music/${id}`;
       const { data: html } = await axios.get(pageUrl, {

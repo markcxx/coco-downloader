@@ -46,6 +46,24 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 dark:bg-slate-950 transition-colors duration-300`}
       >
+        {/* Suppress third-party library deprecation warnings */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                const origWarn = console.warn;
+                console.warn = function(...args) {
+                  if (args[0] && typeof args[0] === 'string' && 
+                      args[0].includes('[antd: Drawer]') && 
+                      args[0].includes('width')) {
+                    return; // Suppress @lobehub/ui Drawer warning
+                  }
+                  origWarn.apply(console, args);
+                };
+              })();
+            `,
+          }}
+        />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

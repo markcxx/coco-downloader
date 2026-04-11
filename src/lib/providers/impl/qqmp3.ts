@@ -69,15 +69,22 @@ export class QQMp3Provider implements MusicProvider {
     }
   }
 
-  async getPlayInfo(id: string, extra?: unknown): Promise<PlayInfo> {
-    void extra;
+  async getPlayInfo(id: string, quality?: 'standard' | 'high' | 'lossless'): Promise<PlayInfo> {
     try {
+      // 根据音质等级设置 level 参数
+      const levelMap = {
+        'standard': 'standard',
+        'high': 'exhigh',
+        'lossless': 'sq'
+      };
+      const level = quality ? levelMap[quality] : 'exhigh';
+      
       const { data } = await axios.get<DetailResponse>('https://api.qqmp3.vip/api/kw.php', {
         headers: HEADERS,
         params: {
           rid: id,
           type: 'json',
-          level: 'exhigh',
+          level: level,
           lrc: 'true',
         },
       });
@@ -85,11 +92,12 @@ export class QQMp3Provider implements MusicProvider {
       if (data.code === 200 && data.data && data.data.url) {
         return {
           url: data.data.url,
-          type: 'mp3', // Default to mp3 as extension might not be in URL or tricky to parse
-          cover: undefined, // Already have cover from search
+          type: quality === 'lossless' ? 'flac' : 'mp3',
+          bitrate: quality === 'lossless' ? 'FLAC' : quality === 'high' ? '320kbps' : '128kbps',
+          cover: undefined,
         };
       }
-      
+
       throw new Error('Failed to get play info');
     } catch (error) {
       console.error('QQMp3 getPlayInfo error:', error);

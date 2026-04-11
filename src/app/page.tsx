@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { Search, Loader2, Play, Pause, Download, Check, Music, Trash2, Flame, Zap, ShieldCheck, Headphones, ExternalLink } from "lucide-react";
+import { Search, Loader2, Play, Pause, Download, Check, Music, Trash2, Flame, Zap, ShieldCheck, Headphones, ExternalLink, HardDrive, Globe, Settings2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { MusicItem } from "@/types/music";
@@ -73,6 +73,12 @@ export default function Home() {
   const [downloadTasks, setDownloadTasks] = useState<DownloadTask[]>([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [downloadEnabled, setDownloadEnabled] = useState(true);
+  
+  // Download mode: 'server' = save to /data, 'browser' = direct browser download
+  const [downloadMode, setDownloadMode] = useState<'server' | 'browser'>('server');
+  
+  // Download quality: 'standard' | 'high' | 'lossless'
+  const [downloadQuality, setDownloadQuality] = useState<'standard' | 'high' | 'lossless'>('standard');
 
   const openSourceUrl = async (item: MusicItem) => {
     const res = await fetch(
@@ -264,7 +270,7 @@ export default function Home() {
   const executeDownload = async (task: DownloadTask) => {
     try {
       // Update status to downloading
-      setDownloadTasks(prev => prev.map(t => 
+      setDownloadTasks(prev => prev.map(t =>
         t.id === task.id ? { ...t, status: 'downloading' } : t
       ));
 
@@ -276,41 +282,72 @@ export default function Home() {
         return;
       }
 
-      const response = await axios.get(`/api/download`, {
-        params: {
-          id: task.musicItem.id,
-          provider: task.musicItem.provider || 'gequbao',
-          filename: task.fileName
-        },
-        responseType: 'blob',
-        onDownloadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-            const percent = (progressEvent.loaded / progressEvent.total) * 100;
-            setDownloadTasks(prev => prev.map(t => 
-              t.id === task.id ? { ...t, progress: percent } : t
-            ));
+      if (downloadMode === 'server') {
+        // Server mode: Save to /data directory only, no browser download
+        const response = await axios.get(`/api/download`, {
+          params: {
+            id: task.musicItem.id,
+            provider: task.musicItem.provider || 'gequbao',
+            filename: task.fileName,
+            mode: 'server',
+            quality: downloadQuality
+          },
+          onDownloadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const percent = (progressEvent.loaded / progressEvent.total) * 100;
+              setDownloadTasks(prev => prev.map(t =>
+                t.id === task.id ? { ...t, progress: percent } : t
+              ));
+            }
           }
-        }
-      });
+        });
 
-      // Handle completion
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = task.fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+        console.log('✓ File saved to server:', response.data.filePath);
+        
+        // 显示实际音质信息
+        const actualQuality = response.data.detectedQuality || downloadQuality;
+        const qualityLabel = actualQuality === 'lossless' ? '🎵 无损' : actualQuality === 'high' ? '🎶 高品' : '🎵 标准';
+        console.log(`✓ 实际音质: ${qualityLabel} (${response.data.fileSize ? (response.data.fileSize / 1024 / 1024).toFixed(2) + 'MB' : '未知大小'})`);
+      } else {
+        // Browser mode: Direct download from source URL without saving to server
+        const response = await axios.get(`/api/download`, {
+          params: {
+            id: task.musicItem.id,
+            provider: task.musicItem.provider || 'gequbao',
+            filename: task.fileName,
+            mode: 'browser',
+            quality: downloadQuality
+          },
+          responseType: 'blob',
+          onDownloadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const percent = (progressEvent.loaded / progressEvent.total) * 100;
+              setDownloadTasks(prev => prev.map(t =>
+                t.id === task.id ? { ...t, progress: percent } : t
+              ));
+            }
+          }
+        });
 
-      setDownloadTasks(prev => prev.map(t => 
+        // Trigger browser download directly
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = task.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }
+
+      setDownloadTasks(prev => prev.map(t =>
         t.id === task.id ? { ...t, status: 'completed', progress: 100 } : t
       ));
 
     } catch (err: unknown) {
       console.error(err);
       const errorMessage = err instanceof Error ? err.message : 'Download failed';
-      setDownloadTasks(prev => prev.map(t => 
+      setDownloadTasks(prev => prev.map(t =>
         t.id === task.id ? { ...t, status: 'error', error: errorMessage } : t
       ));
     }
@@ -585,6 +622,70 @@ export default function Home() {
               </button>
             </div>
           </form>
+
+          {/* Download Mode & Quality Selector */}
+          <div className="flex items-center gap-3 mb-6 flex-wrap">
+            <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+              <Download className="w-4 h-4" />
+              <span>下载模式:</span>
+            </div>
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-full p-1">
+              <button
+                onClick={() => setDownloadMode('server')}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all cursor-pointer",
+                  downloadMode === 'server'
+                    ? "bg-sky-500 text-white shadow-md shadow-sky-200 dark:shadow-none"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+                )}
+                title="保存到服务器 ./data 目录"
+              >
+                <HardDrive className="w-4 h-4" />
+                服务器
+              </button>
+              <button
+                onClick={() => setDownloadMode('browser')}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all cursor-pointer",
+                  downloadMode === 'browser'
+                    ? "bg-sky-500 text-white shadow-md shadow-sky-200 dark:shadow-none"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+                )}
+                title="直接浏览器下载，不经过服务器"
+              >
+                <Globe className="w-4 h-4" />
+                浏览器
+              </button>
+            </div>
+            
+            <div className="h-6 w-px bg-slate-200 dark:bg-slate-700"></div>
+            
+            <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+              <Settings2 className="w-4 h-4" />
+              <span>音质:</span>
+            </div>
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-full p-1">
+              {[
+                { value: 'standard' as const, label: '标准', desc: '标准音质 (Provider 默认)' },
+                { value: 'high' as const, label: '高品', desc: '高品质 (320kbps)' },
+                { value: 'lossless' as const, label: '无损', desc: '无损音质 (FLAC)' }
+              ].map((q) => (
+                <button
+                  key={q.value}
+                  onClick={() => setDownloadQuality(q.value)}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all cursor-pointer",
+                    downloadQuality === q.value
+                      ? "bg-emerald-500 text-white shadow-md shadow-emerald-200 dark:shadow-none"
+                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+                  )}
+                  title={q.desc}
+                >
+                  {q.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Hot Tags */}
           <AnimatePresence>

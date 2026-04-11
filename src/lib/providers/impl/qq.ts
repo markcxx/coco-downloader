@@ -71,12 +71,12 @@ export class QQProvider implements MusicProvider {
     }
   }
 
-  async getPlayInfo(id: string): Promise<PlayInfo> {
+  async getPlayInfo(id: string, quality?: 'standard' | 'high' | 'lossless'): Promise<PlayInfo> {
     try {
-      for (const quality of QUALITY_PRIORITY) {
+      for (const q of QUALITY_PRIORITY) {
         const { data } = await axios.get<VKeysGetUrlResponse>('https://api.vkeys.cn/v2/music/tencent/geturl', {
           headers: SEARCH_HEADERS,
-          params: { mid: id, quality },
+          params: { mid: id, quality: q },
           timeout: 15000,
         });
         if (data?.code !== 200) {

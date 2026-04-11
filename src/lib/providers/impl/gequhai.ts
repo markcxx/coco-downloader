@@ -144,7 +144,7 @@ export class GequhaiProvider implements MusicProvider {
     }
   }
 
-  async getPlayInfo(id: string, extra?: unknown): Promise<PlayInfo> {
+  async getPlayInfo(id: string, quality?: 'standard' | 'high' | 'lossless', extra?: unknown): Promise<PlayInfo> {
     try {
       const playUrl = (() => {
         const candidate = (extra as { playUrl?: unknown } | undefined)?.playUrl;

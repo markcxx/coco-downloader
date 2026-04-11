@@ -181,7 +181,7 @@ export class MiguProvider implements MusicProvider {
     }
   }
 
-  async getPlayInfo(id: string): Promise<PlayInfo> {
+  async getPlayInfo(id: string, quality?: 'standard' | 'high' | 'lossless'): Promise<PlayInfo> {
     try {
       const { contentId, copyrightId } = parseId(id);
       if (!contentId || !copyrightId) {

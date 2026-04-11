@@ -124,7 +124,7 @@ export class LivepooProvider implements MusicProvider {
     }
   }
 
-  async getPlayInfo(id: string, extra?: unknown): Promise<PlayInfo> {
+  async getPlayInfo(id: string, quality?: 'standard' | 'high' | 'lossless', extra?: unknown): Promise<PlayInfo> {
     try {
       const detailUrl = this.getDetailUrl(id, extra);
       if (detailUrl) {

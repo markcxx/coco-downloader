@@ -98,7 +98,7 @@ export class BuguProvider implements MusicProvider {
     }
   }
 
-  async getPlayInfo(id: string, extra?: unknown): Promise<PlayInfo> {
+  async getPlayInfo(id: string, quality?: 'standard' | 'high' | 'lossless', extra?: unknown): Promise<PlayInfo> {
     try {
       const { data } = await axios.get<BuguDetailResponse>('https://a.buguyy.top/newapi/geturl2.php', {
         headers: SEARCH_HEADERS,
