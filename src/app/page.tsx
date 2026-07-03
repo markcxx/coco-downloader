@@ -297,10 +297,10 @@ export default function Home() {
     return next;
   };
 
-  const fetchSearchPage = async (offset: number) => {
+  const fetchSearchPage = async (offset: number, searchQuery?: string) => {
+    const q = (searchQuery ?? query).trim();
     const params = new URLSearchParams({
-      q: query.trim(),
-      provider,
+      q,
       limit: String(SEARCH_PAGE_SIZE),
       offset: String(offset),
     });
@@ -311,24 +311,27 @@ export default function Home() {
     return items as MusicItem[];
   };
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-
+  const performSearch = async (searchQuery: string) => {
+    if (!searchQuery.trim()) return;
+    setQuery(searchQuery);
     setLoading(true);
     setSearched(true);
     setResults([]);
     setSelectedIds(new Set());
     setHasMoreResults(false);
-    
     try {
-      const items = await fetchSearchPage(0);
+      const items = await fetchSearchPage(0, searchQuery);
       setResults(items);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await performSearch(query);
   };
 
   const handleLoadMore = async () => {
@@ -921,7 +924,8 @@ export default function Home() {
                 {["周杰伦", "林俊杰", "陈奕迅", "孙燕姿"].map((tag) => (
                   <button
                     key={tag}
-                    onClick={() => setQuery(tag)}
+                    type="button"
+                    onClick={() => performSearch(tag)}
                     className="cursor-pointer rounded-full border border-[#c0c7d4]/30 bg-[#f0eded] px-3 py-1.5 text-[#1b1b1c] transition-colors hover:bg-[#eae7e7] dark:border-white/10 dark:bg-[#242526] dark:text-[#f3f0ef] dark:hover:bg-[#303030]"
                   >
                     {tag}
