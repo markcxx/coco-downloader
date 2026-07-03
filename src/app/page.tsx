@@ -776,6 +776,33 @@ export default function Home() {
     };
   }, [playing, playMode, results]);
 
+  // 空格键切换播放/暂停
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 忽略输入框中的空格
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement)?.contentEditable === 'true'
+      ) {
+        return;
+      }
+      if (e.code === 'Space' && activeMusic) {
+        e.preventDefault();
+        if (resolvingMusicId === activeMusic.id) return;
+        if (playing) {
+          audioRef.current?.pause();
+          setPlaying(false);
+        } else {
+          audioRef.current?.play();
+          setPlaying(true);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [playing, activeMusic, resolvingMusicId]);
+
   return (
     <main className="min-h-[calc(100vh-64px)] bg-[#fcf9f8] text-[#1b1b1c] selection:bg-[#d3e3ff] selection:text-[#001c39] pb-36 transition-colors duration-300 dark:bg-[#111315] dark:text-[#f3f0ef]">
       <div className="mx-auto flex w-full max-w-[1440px] flex-col items-center px-4 py-10 md:px-12">
