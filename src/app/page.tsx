@@ -2,13 +2,14 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { Search, Loader2, Play, Pause, Download, Check, Music, Trash2, ExternalLink, ChevronDown, ArrowRight } from "lucide-react";
+import { Search, Loader2, Play, Pause, Download, Check, Music, Trash2, ExternalLink, ChevronDown, ArrowRight, Heart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { MusicItem } from "@/types/music";
 import { PlayerBar } from "@/components/PlayerBar";
 import { DownloadDrawer } from "@/components/DownloadDrawer";
 import { QualitySelectModal } from "@/components/QualitySelectModal";
+import { PlaylistDrawer } from "@/components/PlaylistDrawer";
 import { FullscreenPlayerDrawer } from "@/components/FullscreenPlayerDrawer";
 import { DownloadTask } from "@/types/download";
 import axios from "axios";
@@ -225,6 +226,41 @@ export default function Home() {
   // Download Manager State
   const [downloadTasks, setDownloadTasks] = useState<DownloadTask[]>([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
+
+  // Playlist State
+  const [playlist, setPlaylist] = useState<MusicItem[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem('coco-playlist');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('coco-playlist', JSON.stringify(playlist));
+  }, [playlist]);
+
+  const addToPlaylist = (item: MusicItem) => {
+    setPlaylist(prev => {
+      if (prev.some(p => p.id === item.id)) return prev;
+      return [...prev, item];
+    });
+  };
+
+  const removeFromPlaylist = (itemId: string) => {
+    setPlaylist(prev => prev.filter(p => p.id !== itemId));
+  };
+
+  // Navbar 歌单按钮事件
+  useEffect(() => {
+    const handler = () => setIsPlaylistOpen(prev => !prev);
+    window.addEventListener('toggle-playlist', handler);
+    return () => window.removeEventListener('toggle-playlist', handler);
+  }, []);
   const [downloadEnabled, setDownloadEnabled] = useState(true);
   const [resolvingMusicId, setResolvingMusicId] = useState<string | null>(null);
   const [qualityModal, setQualityModal] = useState<QualityModalState | null>(null);
@@ -1058,13 +1094,27 @@ export default function Home() {
                           </button>
                           <SourceLinkButton item={item} />
                           {downloadEnabled ? (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); requestDownloadOne(item); }}
-                              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-[#005faa] text-white shadow-sm transition-all hover:bg-[#0078d4] hover:shadow-md active:scale-95"
-                              title="下载"
-                            >
-                              <Download className="w-5 h-5" />
-                            </button>
+                            <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); addToPlaylist(item); }}
+                                className={cn(
+                                  "flex h-9 w-9 cursor-pointer items-center justify-center rounded-full transition-colors",
+                                  playlist.some(p => p.id === item.id)
+                                    ? "bg-rose-50 text-rose-500 dark:bg-rose-900/20 dark:text-rose-300"
+                                    : "text-[#404752] hover:bg-[#005faa]/10 hover:text-rose-500 dark:text-[#c6c6c7] dark:hover:text-rose-300"
+                                )}
+                                title={playlist.some(p => p.id === item.id) ? "已加入歌单" : "添加到歌单"}
+                              >
+                                <Heart className={cn("h-5 w-5", playlist.some(p => p.id === item.id) && "fill-current")} />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); requestDownloadOne(item); }}
+                                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-[#005faa] text-white shadow-sm transition-all hover:bg-[#0078d4] hover:shadow-md active:scale-95"
+                                title="下载"
+                              >
+                                <Download className="w-5 h-5" />
+                              </button>
+                            </>
                           ) : null}
                         </div>
                       </motion.div>
@@ -1108,6 +1158,14 @@ export default function Home() {
           onClearCompleted={() => setDownloadTasks(prev => prev.filter(t => t.status === 'downloading' || t.status === 'pending'))}
         />
       ) : null}
+
+      <PlaylistDrawer
+        isOpen={isPlaylistOpen}
+        onClose={() => setIsPlaylistOpen(false)}
+        items={playlist}
+        onPlay={handlePlay}
+        onRemove={removeFromPlaylist}
+      />
 
       <QualitySelectModal
         isOpen={Boolean(qualityModal)}
