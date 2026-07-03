@@ -201,6 +201,23 @@ const PROVIDER_OPTIONS = [
 
 export default function Home() {
   const [query, setQuery] = useState("");
+
+  // 搜索历史，最多 5 条
+  const [searchHistory, setSearchHistory] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem('coco-search-history');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('coco-search-history', JSON.stringify(searchHistory));
+  }, [searchHistory]);
   const [provider, setProvider] = useState("netease");
   const [providerMenuOpen, setProviderMenuOpen] = useState(false);
   const [results, setResults] = useState<MusicItem[]>([]);
@@ -313,6 +330,11 @@ export default function Home() {
 
   const performSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) return;
+    // 保存到搜索历史（去重、最多 5 条）
+    setSearchHistory(prev => {
+      const filtered = prev.filter(h => h !== searchQuery);
+      return [searchQuery, ...filtered].slice(0, 5);
+    });
     setQuery(searchQuery);
     setLoading(true);
     setSearched(true);
@@ -897,6 +919,8 @@ export default function Home() {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
                   placeholder="输入歌曲名、歌手或专辑..."
                   className="h-12 w-full rounded-xl border-none bg-transparent py-3 pl-10 pr-28 text-base leading-6 text-[#1b1b1c] outline-none placeholder:text-[#404752]/60 focus:ring-0 dark:text-[#f3f0ef] dark:placeholder:text-[#c6c6c7]/60"
               />
@@ -909,11 +933,30 @@ export default function Home() {
                   {!loading && <ArrowRight className="h-4 w-4" />}
               </button>
               </div>
+
+              {/* 搜索历史 */}
+              {searchFocused && searchHistory.length > 0 && !searched && (
+                <div className="mt-2 px-2">
+                  <p className="mb-2 text-[11px] font-medium text-[#404752]/50 dark:text-[#c6c6c7]/50">最近搜索</p>
+                  <div className="flex flex-wrap gap-2">
+                    {searchHistory.map((term) => (
+                      <button
+                        key={term}
+                        type="button"
+                        onClick={() => performSearch(term)}
+                        className="cursor-pointer rounded-full border border-[#c0c7d4]/30 bg-[#f0eded] px-3 py-1.5 text-xs text-[#1b1b1c] transition-colors hover:bg-[#eae7e7] dark:border-white/10 dark:bg-[#242526] dark:text-[#f3f0ef] dark:hover:bg-[#303030]"
+                      >
+                        {term}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </form>
 
           <AnimatePresence>
-            {!searched && (
+            {!searched && !searchFocused && (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
