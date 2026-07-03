@@ -779,6 +779,7 @@ export default function Home() {
   // 空格键切换播放/暂停
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== ' ') return;
       // 忽略输入框中的空格
       if (
         e.target instanceof HTMLInputElement ||
@@ -787,7 +788,7 @@ export default function Home() {
       ) {
         return;
       }
-      if (e.code === 'Space' && activeMusic) {
+      if (activeMusic) {
         e.preventDefault();
         if (resolvingMusicId === activeMusic.id) return;
         if (playing) {
@@ -799,8 +800,8 @@ export default function Home() {
         }
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => document.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [playing, activeMusic, resolvingMusicId]);
 
   return (
