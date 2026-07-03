@@ -220,7 +220,20 @@ export default function Home() {
     localStorage.setItem('coco-search-history', JSON.stringify(searchHistory));
   }, [searchHistory]);
 
-  const [provider, setProvider] = useState("netease");
+  const [provider, setProvider] = useState<string>(() => {
+    if (typeof window === 'undefined') return "netease";
+    try {
+      return localStorage.getItem('coco-search-provider') || "netease";
+    } catch {
+      return "netease";
+    }
+  });
+
+  // 持久化搜索源
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('coco-search-provider', provider);
+  }, [provider]);
   const [providerMenuOpen, setProviderMenuOpen] = useState(false);
   const [results, setResults] = useState<MusicItem[]>([]);
   const [loading, setLoading] = useState(false);
