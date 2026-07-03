@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { Search, Loader2, Play, Pause, Download, Check, Music, Trash2, ExternalLink, ChevronDown, ArrowRight, Heart } from "lucide-react";
+import { Search, Loader2, Play, Pause, Download, Check, Music, Trash2, ExternalLink, ChevronDown, ArrowRight, Heart, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { MusicItem } from "@/types/music";
@@ -940,7 +940,7 @@ export default function Home() {
 
           {/* 搜索历史 */}
           <AnimatePresence>
-            {searchFocused && searchHistory.length > 0 && !searched && (
+            {searchFocused && searchHistory.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -949,14 +949,23 @@ export default function Home() {
               >
                 <div className="flex flex-wrap gap-2">
                   {searchHistory.slice(0, 5).map((term) => (
-                    <button
-                      key={term}
-                      type="button"
-                      onClick={() => performSearch(term)}
-                      className="cursor-pointer rounded-full border border-[#c0c7d4]/30 bg-[#f0eded] px-3 py-1.5 text-xs text-[#1b1b1c] transition-colors hover:bg-[#eae7e7] dark:border-white/10 dark:bg-[#242526] dark:text-[#f3f0ef] dark:hover:bg-[#303030]"
-                    >
-                      {term}
-                    </button>
+                    <div key={term} className="relative group">
+                      <button
+                        type="button"
+                        onClick={() => performSearch(term)}
+                        className="cursor-pointer rounded-full border border-[#c0c7d4]/30 bg-[#f0eded] pr-7 px-3 py-1.5 text-xs text-[#1b1b1c] transition-colors hover:bg-[#eae7e7] dark:border-white/10 dark:bg-[#242526] dark:text-[#f3f0ef] dark:hover:bg-[#303030]"
+                      >
+                        {term}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSearchHistory(prev => prev.filter(h => h !== term))}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 flex h-4 w-4 items-center justify-center rounded-full text-[#404752]/40 opacity-0 transition-opacity hover:text-[#ba1a1a] group-hover:opacity-100"
+                        title="删除"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               </motion.div>
