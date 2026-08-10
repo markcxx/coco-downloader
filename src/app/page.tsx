@@ -2,13 +2,14 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { Search, Loader2, Play, Pause, Download, Check, Music, Trash2, ExternalLink, ChevronDown, ArrowRight } from "lucide-react";
+import { Search, Loader2, Play, Pause, Download, Check, Music, Trash2, ExternalLink, ChevronDown, ArrowRight, Heart, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { MusicItem } from "@/types/music";
 import { PlayerBar } from "@/components/PlayerBar";
 import { DownloadDrawer } from "@/components/DownloadDrawer";
 import { QualitySelectModal } from "@/components/QualitySelectModal";
+import { PlaylistDrawer } from "@/components/PlaylistDrawer";
 import { FullscreenPlayerDrawer } from "@/components/FullscreenPlayerDrawer";
 import { DownloadTask } from "@/types/download";
 import axios from "axios";
@@ -195,7 +196,39 @@ const PROVIDER_OPTIONS = [
 
 export default function Home() {
   const [query, setQuery] = useState("");
-  const [provider, setProvider] = useState("netease");
+
+  // 搜索历史，最多 5 条
+  const [searchHistory, setSearchHistory] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem('coco-search-history');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('coco-search-history', JSON.stringify(searchHistory));
+  }, [searchHistory]);
+
+  const [provider, setProvider] = useState<string>(() => {
+    if (typeof window === 'undefined') return "netease";
+    try {
+      return localStorage.getItem('coco-search-provider') || "netease";
+    } catch {
+      return "netease";
+    }
+  });
+
+  // 持久化搜索源
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('coco-search-provider', provider);
+  }, [provider]);
   const [providerMenuOpen, setProviderMenuOpen] = useState(false);
   const [results, setResults] = useState<MusicItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -220,6 +253,41 @@ export default function Home() {
   // Download Manager State
   const [downloadTasks, setDownloadTasks] = useState<DownloadTask[]>([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
+
+  // Playlist State
+  const [playlist, setPlaylist] = useState<MusicItem[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem('coco-playlist');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('coco-playlist', JSON.stringify(playlist));
+  }, [playlist]);
+
+  const addToPlaylist = (item: MusicItem) => {
+    setPlaylist(prev => {
+      if (prev.some(p => p.id === item.id)) return prev;
+      return [...prev, item];
+    });
+  };
+
+  const removeFromPlaylist = (itemId: string) => {
+    setPlaylist(prev => prev.filter(p => p.id !== itemId));
+  };
+
+  // Navbar 歌单按钮事件
+  useEffect(() => {
+    const handler = () => setIsPlaylistOpen(prev => !prev);
+    window.addEventListener('toggle-playlist', handler);
+    return () => window.removeEventListener('toggle-playlist', handler);
+  }, []);
   const [downloadEnabled, setDownloadEnabled] = useState(true);
   const [resolvingMusicId, setResolvingMusicId] = useState<string | null>(null);
   const [qualityModal, setQualityModal] = useState<QualityModalState | null>(null);
@@ -256,10 +324,10 @@ export default function Home() {
     return next;
   };
 
-  const fetchSearchPage = async (offset: number) => {
+  const fetchSearchPage = async (offset: number, searchQuery?: string) => {
+    const q = (searchQuery ?? query).trim();
     const params = new URLSearchParams({
-      q: query.trim(),
-      provider,
+      q,
       limit: String(SEARCH_PAGE_SIZE),
       offset: String(offset),
     });
@@ -270,24 +338,32 @@ export default function Home() {
     return items as MusicItem[];
   };
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-
+  const performSearch = async (searchQuery: string) => {
+    if (!searchQuery.trim()) return;
+    // 保存到搜索历史（去重、最多 5 条）
+    setSearchHistory(prev => {
+      const filtered = prev.filter(h => h !== searchQuery);
+      return [searchQuery, ...filtered].slice(0, 100);
+    });
+    setQuery(searchQuery);
     setLoading(true);
     setSearched(true);
     setResults([]);
     setSelectedIds(new Set());
     setHasMoreResults(false);
-    
     try {
-      const items = await fetchSearchPage(0);
+      const items = await fetchSearchPage(0, searchQuery);
       setResults(items);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await performSearch(query);
   };
 
   const handleLoadMore = async () => {
@@ -853,6 +929,8 @@ export default function Home() {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
                   placeholder="输入歌曲名、歌手或专辑..."
                   className="h-12 w-full rounded-xl border-none bg-transparent py-3 pl-10 pr-28 text-base leading-6 text-[#1b1b1c] outline-none placeholder:text-[#404752]/60 focus:ring-0 dark:text-[#f3f0ef] dark:placeholder:text-[#c6c6c7]/60"
               />
@@ -868,8 +946,42 @@ export default function Home() {
             </div>
           </form>
 
+          {/* 搜索历史 */}
           <AnimatePresence>
-            {!searched && (
+            {searchFocused && searchHistory.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -5 }}
+                className="w-full max-w-2xl mt-3 px-3"
+              >
+                <div className="flex flex-wrap gap-2">
+                  {searchHistory.slice(0, 5).map((term) => (
+                    <div key={term} className="relative group">
+                      <button
+                        type="button"
+                        onClick={() => performSearch(term)}
+                        className="cursor-pointer rounded-full border border-[#c0c7d4]/30 bg-[#f0eded] pr-7 px-3 py-1.5 text-xs text-[#1b1b1c] transition-colors hover:bg-[#eae7e7] dark:border-white/10 dark:bg-[#242526] dark:text-[#f3f0ef] dark:hover:bg-[#303030]"
+                      >
+                        {term}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSearchHistory(prev => prev.filter(h => h !== term))}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 flex h-4 w-4 items-center justify-center rounded-full text-[#404752]/40 opacity-0 transition-opacity hover:text-[#ba1a1a] group-hover:opacity-100"
+                        title="删除"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {!searched && !searchFocused && (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -880,7 +992,8 @@ export default function Home() {
                 {["周杰伦", "林俊杰", "陈奕迅", "孙燕姿"].map((tag) => (
                   <button
                     key={tag}
-                    onClick={() => setQuery(tag)}
+                    type="button"
+                    onClick={() => performSearch(tag)}
                     className="cursor-pointer rounded-full border border-[#c0c7d4]/30 bg-[#f0eded] px-3 py-1.5 text-[#1b1b1c] transition-colors hover:bg-[#eae7e7] dark:border-white/10 dark:bg-[#242526] dark:text-[#f3f0ef] dark:hover:bg-[#303030]"
                   >
                     {tag}
@@ -1053,13 +1166,27 @@ export default function Home() {
                           </button>
                           <SourceLinkButton item={item} />
                           {downloadEnabled ? (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); requestDownloadOne(item); }}
-                              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-[#005faa] text-white shadow-sm transition-all hover:bg-[#0078d4] hover:shadow-md active:scale-95"
-                              title="下载"
-                            >
-                              <Download className="w-5 h-5" />
-                            </button>
+                            <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); addToPlaylist(item); }}
+                                className={cn(
+                                  "flex h-9 w-9 cursor-pointer items-center justify-center rounded-full transition-colors",
+                                  playlist.some(p => p.id === item.id)
+                                    ? "bg-rose-50 text-rose-500 dark:bg-rose-900/20 dark:text-rose-300"
+                                    : "text-[#404752] hover:bg-[#005faa]/10 hover:text-rose-500 dark:text-[#c6c6c7] dark:hover:text-rose-300"
+                                )}
+                                title={playlist.some(p => p.id === item.id) ? "已加入歌单" : "添加到歌单"}
+                              >
+                                <Heart className={cn("h-5 w-5", playlist.some(p => p.id === item.id) && "fill-current")} />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); requestDownloadOne(item); }}
+                                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-[#005faa] text-white shadow-sm transition-all hover:bg-[#0078d4] hover:shadow-md active:scale-95"
+                                title="下载"
+                              >
+                                <Download className="w-5 h-5" />
+                              </button>
+                            </>
                           ) : null}
                         </div>
                       </motion.div>
@@ -1103,6 +1230,14 @@ export default function Home() {
           onClearCompleted={() => setDownloadTasks(prev => prev.filter(t => t.status === 'downloading' || t.status === 'pending'))}
         />
       ) : null}
+
+      <PlaylistDrawer
+        isOpen={isPlaylistOpen}
+        onClose={() => setIsPlaylistOpen(false)}
+        items={playlist}
+        onPlay={handlePlay}
+        onRemove={removeFromPlaylist}
+      />
 
       <QualitySelectModal
         isOpen={Boolean(qualityModal)}
