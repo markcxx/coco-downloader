@@ -218,7 +218,26 @@ export default function Home() {
   const [downloadingCount, setDownloadingCount] = useState(0);
   
   // Download Manager State
-  const [downloadTasks, setDownloadTasks] = useState<DownloadTask[]>([]);
+  const [downloadTasks, setDownloadTasks] = useState<DownloadTask[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem('coco-download-tasks');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // 持久化已完成/失败的任务到 localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const completed = downloadTasks.filter(t => t.status === 'completed' || t.status === 'error');
+    if (completed.length > 0) {
+      localStorage.setItem('coco-download-tasks', JSON.stringify(completed));
+    } else {
+      localStorage.removeItem('coco-download-tasks');
+    }
+  }, [downloadTasks]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [downloadEnabled, setDownloadEnabled] = useState(true);
   const [resolvingMusicId, setResolvingMusicId] = useState<string | null>(null);

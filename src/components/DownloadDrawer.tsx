@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Download, CheckCircle2, AlertCircle, Trash2, Music, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { DownloadTask } from '@/types/download';
@@ -22,6 +22,7 @@ export function DownloadDrawer({
   onRemoveTask,
   onClearCompleted
 }: DownloadDrawerProps) {
+  const [activeTab, setActiveTab] = useState<'downloading' | 'completed'>('downloading');
   // Sort tasks: downloading first, then recent
   const sortedTasks = [...tasks].sort((a, b) => {
     if (a.status === 'downloading' && b.status !== 'downloading') return -1;
@@ -30,6 +31,11 @@ export function DownloadDrawer({
   });
 
   const downloadingCount = tasks.filter(t => t.status === 'downloading').length;
+  const completedCount = tasks.filter(t => t.status === 'completed' || t.status === 'error').length;
+
+  const filteredTasks = activeTab === 'downloading'
+    ? sortedTasks.filter(t => t.status === 'downloading' || t.status === 'pending')
+    : sortedTasks.filter(t => t.status === 'completed' || t.status === 'error');
 
   return (
     <>
@@ -89,13 +95,29 @@ export function DownloadDrawer({
             </div>
 
             <div className="mb-1 flex rounded-xl bg-[#e5e2e1]/70 p-1 dark:bg-white/10">
-              <button className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#5badff] py-2 text-sm font-medium text-[#003f6d] shadow-sm">
+              <button
+                onClick={() => setActiveTab('downloading')}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-colors",
+                  activeTab === 'downloading'
+                    ? "bg-[#5badff] text-[#003f6d] shadow-sm"
+                    : "text-[#404752] hover:bg-[#e5e2e1]/70 dark:text-[#c6c6c7] dark:hover:bg-white/10"
+                )}
+              >
                 <Download className="h-4 w-4" />
                 进行中 ({downloadingCount})
               </button>
-              <button className="flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium text-[#404752] transition-colors hover:bg-[#e5e2e1]/70 dark:text-[#c6c6c7] dark:hover:bg-white/10">
+              <button
+                onClick={() => setActiveTab('completed')}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-colors",
+                  activeTab === 'completed'
+                    ? "bg-[#5badff] text-[#003f6d] shadow-sm"
+                    : "text-[#404752] hover:bg-[#e5e2e1]/70 dark:text-[#c6c6c7] dark:hover:bg-white/10"
+                )}
+              >
                 <CheckCircle2 className="h-4 w-4" />
-                已完成
+                已完成 ({completedCount})
               </button>
             </div>
 
@@ -112,15 +134,19 @@ export function DownloadDrawer({
             )}
 
             <div className="flex-1 space-y-4 overflow-y-auto pr-2">
-              {tasks.length === 0 ? (
+              {filteredTasks.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center gap-4 text-[#404752] dark:text-[#c6c6c7]">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white dark:bg-white/10">
-                    <Download className="h-8 w-8 text-[#717783] dark:text-[#c6c6c7]" />
+                    {activeTab === 'downloading' ? (
+                      <Download className="h-8 w-8 text-[#717783] dark:text-[#c6c6c7]" />
+                    ) : (
+                      <CheckCircle2 className="h-8 w-8 text-[#717783] dark:text-[#c6c6c7]" />
+                    )}
                   </div>
-                  <p>还没有下载任务</p>
+                  <p>{activeTab === 'downloading' ? '还没有下载任务' : '还没有已完成的下载'}</p>
                 </div>
               ) : (
-                sortedTasks.map((task) => (
+                filteredTasks.map((task) => (
                   <div
                     key={task.id}
                     className="group rounded-xl border border-black/5 bg-white p-4 shadow-[0px_4px_12px_rgba(0,0,0,0.05)] transition-transform hover:-translate-y-[2px] dark:border-white/10 dark:bg-[#303030]"
