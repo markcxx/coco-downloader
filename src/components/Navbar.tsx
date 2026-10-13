@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Download, Github, Sun, Moon, Heart } from "lucide-react";
+import { Download, Github, Sun, Moon, Heart, ListMusic } from "lucide-react";
 import { useState, MouseEvent } from "react";
 import { useTheme } from "next-themes";
 import DeveloperPanel from "./DeveloperPanel";
@@ -75,6 +75,15 @@ export function Navbar() {
             <Download className="h-4 w-4" />
             <span className="hidden sm:inline">下载客户端</span>
           </a>
+
+          <button
+            onClick={() => window.dispatchEvent(new Event('toggle-playlist'))}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#e5e2e1]/70 px-3 py-2 text-sm font-medium text-[#1b1b1c] transition-all duration-300 hover:bg-[#e5e2e1] dark:bg-white/10 dark:text-[#f3f0ef] dark:hover:bg-white/20"
+            title="我的歌单"
+          >
+            <ListMusic className="h-4 w-4" />
+            <span className="hidden sm:inline">我的歌单</span>
+          </button>
 
           <button
             onClick={() => setShowDonation(true)}
