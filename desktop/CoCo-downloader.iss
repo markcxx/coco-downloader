@@ -6,7 +6,7 @@
 #define MyAppURL "https://github.com/markcxx/coco-downloader"
 #define EnvAppVersion GetEnv("APP_VERSION")
 #if EnvAppVersion == ""
-  #define MyAppVersion "0.0.3"
+  #define MyAppVersion "0.0.4"
 #else
   #define MyAppVersion EnvAppVersion
 #endif
