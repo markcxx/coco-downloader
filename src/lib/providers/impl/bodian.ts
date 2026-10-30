@@ -2,7 +2,6 @@ import axios from 'axios';
 import { MusicItem, MusicProvider, PlayInfo } from '@/types/music';
 
 const SEARCH_API_URL = 'https://bd-api.kuwo.cn/api/search/music/list';
-const CGG_API_URL = 'https://kw-api.cenguigui.cn/';
 const TIANBAO_API_URL = 'https://mobi.kuwo.cn/mobi.s';
 const REQUEST_TIMEOUT = 20000;
 
@@ -113,86 +112,24 @@ export class BodianProvider implements MusicProvider {
         .filter((item) => item.id && item.title);
     } catch (error) {
       console.error('Bodian search error:', error);
-      return [];
-    }
-  }
-
-  async getPlayInfo(id: string, extra?: unknown): Promise<PlayInfo> {
-    try {
-      const fallbackCover = this.extractCover(extra);
-      try {
-        const info = await this.getByCenguigui(id);
-        return {
-          url: info.url,
-          type: extractExt(info.url, 'flac'),
-          cover: info.cover || fallbackCover,
-          bitrate: info.bitrate,
-        };
-      } catch {
-        const info = await this.getByTianbao(id);
-        return {
-          url: info.url,
-          type: extractExt(info.url, 'flac'),
-          cover: fallbackCover,
-          bitrate: info.bitrate,
-        };
-      }
-    } catch (error) {
-      console.error('Bodian getPlayInfo error:', error);
       throw error;
     }
   }
 
+  async getPlayInfo(id: string, extra?: unknown): Promise<PlayInfo> {
+    const info = await this.getByTianbao(id);
+    return { url: info.url, type: extractExt(info.url, 'flac'), cover: this.extractCover(extra), bitrate: info.bitrate };
+  }
+
   async getLyric(id: string): Promise<BodianLyricData> {
-    try {
-      const content = await this.getLyricByOfficialApi(id);
-      const lrc = cleanLyric(content);
-      return {
-        songid: id,
-        provider: 'bodian',
-        lines: parseLyricLines(lrc),
-        lrc,
-      };
-    } catch {
-      const info = await this.getByCenguigui(id);
-      const lrc = cleanLyric(info.lyric || '');
-      return {
-        songid: id,
-        provider: 'bodian',
-        lines: parseLyricLines(lrc),
-        lrc,
-      };
-    }
+    const content = await this.getLyricByOfficialApi(id);
+    const lrc = cleanLyric(content);
+    return { songid: id, provider: 'bodian', lines: parseLyricLines(lrc), lrc };
   }
 
   private extractCover(extra: unknown) {
     const payload = extra as { albumPic?: string } | undefined;
     return payload?.albumPic || undefined;
-  }
-
-  private async getByCenguigui(id: string) {
-    const { data } = await axios.get(CGG_API_URL, {
-      params: {
-        id,
-        type: 'song',
-        level: 'lossless',
-        format: 'json',
-      },
-      timeout: REQUEST_TIMEOUT,
-    });
-
-    const payload = (data || {}).data || {};
-    const url = String(payload.url || '').trim();
-    if (!url.startsWith('http')) {
-      throw new Error('Invalid cenguigui url');
-    }
-
-    return {
-      url,
-      cover: payload.pic ? String(payload.pic) : undefined,
-      bitrate: 'lossless',
-      lyric: payload.lyric ? String(payload.lyric) : undefined,
-    };
   }
 
   private async getLyricByOfficialApi(id: string) {

@@ -1,0 +1,62 @@
+[
+  {
+    "provider": "gequhai",
+    "query": "晴天",
+    "search_count": 15,
+    "samples": [
+      {
+        "title": "晴天",
+        "artist": "周杰伦",
+        "resolved_host": "car-er.kuwo.cn",
+        "http_status": 206,
+        "content_type": "audio/mpeg",
+        "audio_verified": true,
+        "prefix_hex": "49443303000000000037544954320000",
+        "qt_playback": {
+          "started": true,
+          "position_ms": 753,
+          "duration_ms": 269826
+        }
+      },
+      {
+        "title": "像晴天像雨天",
+        "artist": "汪苏泷",
+        "resolved_host": "car-er.kuwo.cn",
+        "http_status": 206,
+        "content_type": "audio/mpeg",
+        "audio_verified": true,
+        "prefix_hex": "4944330300000000005f544954320000"
+      }
+    ]
+  },
+  {
+    "provider": "qqmp3",
+    "query": "晴天",
+    "search_count": 5,
+    "samples": [
+      {
+        "title": "晴天",
+        "artist": "张信哲",
+        "resolved_host": "car-er.kuwo.cn",
+        "http_status": 206,
+        "content_type": "audio/mpeg",
+        "audio_verified": true,
+        "prefix_hex": "4944330300000000003b544954320000",
+        "qt_playback": {
+          "started": true,
+          "position_ms": 773,
+          "duration_ms": 262333
+        }
+      },
+      {
+        "title": "晴天",
+        "artist": "周杰伦",
+        "resolved_host": "car-er.kuwo.cn",
+        "http_status": 206,
+        "content_type": "audio/mpeg",
+        "audio_verified": true,
+        "prefix_hex": "49443303000000000037544954320000"
+      }
+    ]
+  }
+]

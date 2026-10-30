@@ -1,12 +1,9 @@
 import axios from 'axios';
 import { MusicItem, MusicProvider, PlayInfo } from '@/types/music';
+import { validateAudioLink } from '@/lib/providers/audio-link';
 
 const SEARCH_API_URL = 'https://songsearch.kugou.com/song_search_v2';
-const CGG_API_URL = 'https://music-api2.cenguigui.cn/';
-const HAITANG_API_URLS = [
-  'https://musicapi.haitangw.net/kgqq/kg.php',
-  'https://music.haitangw.cc/kgqq/kg.php',
-];
+const SVIP90_BASE_URL = 'https://music.90svip.cn/';
 const REQUEST_TIMEOUT = 15000;
 
 const SEARCH_HEADERS = {
@@ -49,15 +46,12 @@ export type KugouLyricData = {
 };
 
 type KugouExtra = {
-  selectedParser?: 'cenguigui' | 'haitang';
+  selectedParser?: KugouParser;
   selectedFormat?: string;
   cover?: string;
 };
 
-const KUGOU_DOWNLOAD_OPTIONS = [
-  { value: 'cenguigui', label: '高品质', quality: 'flac/mp3', format: 'flac' },
-  { value: 'haitang', label: '备用', quality: 'flac/mp3', format: 'flac' },
-];
+type KugouParser = '90svip';
 
 function extractExt(url: string, fallback = 'mp3') {
   const clean = url.split('?')[0];
@@ -110,6 +104,15 @@ function getExtraValue(extra: unknown, key: string) {
   return typeof value === 'string' || typeof value === 'number' ? value : undefined;
 }
 
+function parseSessionCookie(setCookie?: string[] | string) {
+  const values = Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : [];
+  for (const value of values) {
+    const match = value.match(/(?:^|[,;]\s*)PHPSESSID=([^;,\s]+)/i);
+    if (match) return `PHPSESSID=${match[1]}`;
+  }
+  return '';
+}
+
 export class KugouProvider implements MusicProvider {
   name = 'kugou';
 
@@ -134,51 +137,18 @@ export class KugouProvider implements MusicProvider {
         .filter((item): item is MusicItem => Boolean(item));
     } catch (error) {
       console.error('Kugou search error:', error);
-      return [];
+      throw error;
     }
   }
 
   async getPlayInfo(id: string, extra?: unknown): Promise<PlayInfo> {
     const fallbackCover = getExtraValue(extra, 'cover') as string | undefined;
     const selectedParser = (extra as KugouExtra | undefined)?.selectedParser;
-    try {
-      if (selectedParser === 'cenguigui') {
-        const info = await this.getByCenguigui(id);
-        return {
-          url: info.url,
-          type: extractExt(info.url),
-          bitrate: info.bitrate,
-          cover: info.cover || fallbackCover,
-        };
-      }
-      if (selectedParser === 'haitang') {
-        const info = await this.getByHaitang(id);
-        return {
-          url: info.url,
-          type: extractExt(info.url),
-          bitrate: info.bitrate,
-          cover: fallbackCover,
-        };
-      }
-
-      const info = await this.getByCenguigui(id);
-      return {
-        url: info.url,
-        type: extractExt(info.url),
-        bitrate: info.bitrate,
-        cover: info.cover || fallbackCover,
-      };
-    } catch (error) {
-      console.warn('Kugou cenguigui fallback:', error);
+    if (selectedParser && selectedParser !== '90svip') {
+      throw new Error('该酷狗解析线路已下架，请重新搜索并选择可用渠道');
     }
-
-    const info = await this.getByHaitang(id);
-    return {
-      url: info.url,
-      type: extractExt(info.url),
-      bitrate: info.bitrate,
-      cover: fallbackCover,
-    };
+    const info = await this.getBy90svip(id);
+    return { url: info.url, type: extractExt(info.url), bitrate: info.bitrate, cover: fallbackCover };
   }
 
   async getLyric(id: string, extra?: unknown): Promise<KugouLyricData> {
@@ -231,51 +201,46 @@ export class KugouProvider implements MusicProvider {
       provider: this.name,
       extra: {
         cover,
-        selectedParser: 'haitang',
-        selectedFormat: 'flac',
-        qualityOptions: KUGOU_DOWNLOAD_OPTIONS,
+        selectedParser: '90svip',
+        selectedFormat: 'mp3',
         filename: item.FileName || item.filename || `${title} - ${artist}`,
         duration: duration || -1,
       },
     };
   }
 
-  private async getByCenguigui(id: string) {
-    for (const level of ['lossless', 'exhigh', 'standard']) {
-      const { data } = await axios.get(CGG_API_URL, {
-        params: { kg: '', id, type: 'song', format: 'json', level },
-        timeout: REQUEST_TIMEOUT,
-      });
-      const payload = data?.data || {};
-      const url = String(payload.url || '').trim();
-      if (url.startsWith('http') && !extractExt(url).startsWith('m')) {
-        return {
-          url,
-          bitrate: level,
-          cover: typeof payload.pic === 'string' ? payload.pic : undefined,
-        };
-      }
-    }
-    throw new Error('Failed to get cenguigui url');
+  private async getBy90svip(id: string) {
+    const params = new URLSearchParams({
+      input: id,
+      filter: 'id',
+      type: 'kugou',
+      page: '1',
+    });
+    const response = await axios.post(SVIP90_BASE_URL, params, {
+      headers: {
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'Referer': SVIP90_BASE_URL,
+        'User-Agent': SEARCH_HEADERS['User-Agent'],
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      timeout: REQUEST_TIMEOUT,
+    });
+    const item = Array.isArray(response.data?.data) ? response.data.data[0] : undefined;
+    const rawUrl = typeof item?.url === 'string' ? item.url : '';
+    if (!rawUrl) throw new Error('90svip returned no play url');
+    const url = new URL(rawUrl, SVIP90_BASE_URL).toString();
+    const cookie = parseSessionCookie(response.headers['set-cookie']);
+    if (!cookie) throw new Error('90svip returned no PHP session');
+    const verified = await validateAudioLink(url, {
+      headers: {
+        cookie,
+        'Referer': SVIP90_BASE_URL,
+        'User-Agent': SEARCH_HEADERS['User-Agent'],
+      },
+      timeout: REQUEST_TIMEOUT,
+    });
+    return { url: verified.url, bitrate: '320k', cover: undefined };
   }
 
-  private async getByHaitang(id: string) {
-    for (const apiUrl of HAITANG_API_URLS) {
-      for (const level of ['hires', 'lossless', 'exhigh']) {
-        try {
-          const { data } = await axios.get(apiUrl, {
-            params: { type: 'json', id, level },
-            timeout: REQUEST_TIMEOUT,
-          });
-          const payload = data?.data || {};
-          const url = String(payload.url || '').trim();
-          if (url.startsWith('http')) {
-            return { url, bitrate: level };
-          }
-        } catch {
-        }
-      }
-    }
-    throw new Error('Failed to get haitang url');
-  }
 }

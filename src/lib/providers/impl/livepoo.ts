@@ -54,17 +54,6 @@ function parseTitle(text: string) {
   return { artist: '', title: normalized };
 }
 
-function extractCover(html: string) {
-  const match = /"music_cover"\s*:\s*"(.*?)"/.exec(html);
-  if (!match) return '';
-  const raw = match[1];
-  try {
-    return JSON.parse(`"${raw}"`).replace('\\/', '/');
-  } catch {
-    return raw.replace('\\/', '/');
-  }
-}
-
 function parseSearchHtml(html: string): LivepooItem[] {
   const $ = cheerio.load(html);
   const items: LivepooItem[] = [];
@@ -95,20 +84,14 @@ function parseSearchHtml(html: string): LivepooItem[] {
   return items;
 }
 
-function getExt(url: string) {
-  const clean = url.split('?')[0];
-  const parts = clean.split('.');
-  return parts.length > 1 ? parts[parts.length - 1] : 'mp3';
-}
-
 export class LivepooProvider implements MusicProvider {
   name = 'livepoo';
 
-  async search(query: string): Promise<MusicItem[]> {
+  async search(query: string, limit = 20, offset = 0): Promise<MusicItem[]> {
     try {
       const url = `https://www.livepoo.cn/search?keyword=${encodeURIComponent(query)}&page=0`;
       const { data } = await axios.get(url, { headers: HEADERS, timeout: 15000 });
-      const results = parseSearchHtml(data);
+      const results = parseSearchHtml(data).slice(offset, offset + limit);
       return results.map((item) => ({
         id: item.id as string,
         title: item.title || '未知歌曲',
@@ -120,52 +103,22 @@ export class LivepooProvider implements MusicProvider {
       }));
     } catch (error) {
       console.error('Livepoo search error:', error);
-      return [];
-    }
-  }
-
-  async getPlayInfo(id: string, extra?: unknown): Promise<PlayInfo> {
-    try {
-      const detailUrl = this.getDetailUrl(id, extra);
-      if (detailUrl) {
-        const { data: detailHtml } = await axios.get(detailUrl, { headers: HEADERS, timeout: 15000 });
-        const cover = extractCover(detailHtml);
-        const playUrl = `https://www.livepoo.cn/audio/play?id=${encodeURIComponent(id)}`;
-        const { data: playUrlText } = await axios.get(playUrl, { headers: HEADERS, timeout: 15000 });
-        const url = String(playUrlText || '').trim();
-        if (!url.startsWith('http')) {
-          throw new Error('Invalid play url');
-        }
-        return {
-          url,
-          type: getExt(url),
-          cover: cover || undefined,
-        };
-      }
-      const playUrl = `https://www.livepoo.cn/audio/play?id=${encodeURIComponent(id)}`;
-      const { data: playUrlText } = await axios.get(playUrl, { headers: HEADERS, timeout: 15000 });
-      const url = String(playUrlText || '').trim();
-      if (!url.startsWith('http')) {
-        throw new Error('Invalid play url');
-      }
-      return {
-        url,
-        type: getExt(url),
-      };
-    } catch (error) {
-      console.error('Livepoo getPlayInfo error:', error);
       throw error;
     }
   }
 
-  private getDetailUrl(id: string, extra?: unknown): string | null {
-    const detailUrl = (extra as { detailUrl?: string } | undefined)?.detailUrl;
-    if (typeof detailUrl === 'string' && detailUrl.startsWith('http')) {
-      return detailUrl;
+  async getPlayInfo(id: string): Promise<PlayInfo> {
+    if (!/^\d+$/.test(id)) throw new Error('力音歌曲 ID 无效，请重新搜索');
+    const url = `https://www.livepoo.cn/music/info.html?id=MUSIC_${id}`;
+    const { data: html } = await axios.get<string>(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://www.livepoo.cn/' },
+      responseType: 'text', timeout: 15000,
+    });
+    // The old /audio/play endpoint is gone. Current pages offer cloud-drive
+    // links; their embedded audio URLs can be expired and must not be played.
+    if (!/https?:\/\/pan\.quark\.cn\/s\//.test(html.replace(/\\\//g, '/'))) {
+      throw new Error('力音暂未提供网盘下载入口，请更换渠道');
     }
-    if (id) {
-      return `https://www.livepoo.cn/music/info.html?id=MUSIC_${id}`;
-    }
-    return null;
+    return { url, type: '', delivery: 'source-page' };
   }
 }

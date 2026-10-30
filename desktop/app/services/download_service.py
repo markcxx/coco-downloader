@@ -2,6 +2,7 @@
 import re
 import time
 import uuid
+from threading import Lock
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -13,12 +14,15 @@ from PyQt5.QtCore import QObject, QThread, pyqtSignal
 from app.common.config import DownloadFilenameRule, cfg
 from app.common.signal_bus import signalBus
 from app.models.music import MusicItem, PlayInfo
-from app.services.providers import get_provider
+from app.services.music_service import resolve_item
+from app.services.audio import audio_extension, checked_audio_extension
+from app.services.thread_lifecycle import retain_thread
 
 DOWNLOAD_TIMEOUT = 30
 DOWNLOAD_CHUNK_SIZE = 1024 * 256
 MAX_CONCURRENT_DOWNLOADS = 3
 PROGRESS_INTERVAL = 0.2
+_FILE_LOCK = Lock()
 REQUEST_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -82,7 +86,10 @@ class DownloadTaskInfo:
 
 
 def _safe_filename(value: str) -> str:
-    filename = re.sub(r'[\\/:*?"<>|]+', "_", value).strip()
+    filename = re.sub(r'[\\/:*?"<>|\x00-\x1f]+', "_", value).strip().rstrip(". ")
+    filename = filename.encode("utf-8")[:180].decode("utf-8", errors="ignore")
+    if re.fullmatch(r"(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?", filename, re.I):
+        filename = "_" + filename
     return filename or "music"
 
 
@@ -127,15 +134,9 @@ class DownloadThread(QThread):
 
     def run(self) -> None:
         try:
-            provider = get_provider(self.item.provider)
-            extra = dict(self.item.extra)
-            extra.update(self.extra_overrides)
-            if self.item.provider == "qq-official":
-                extra["usage"] = "download"
-            if self.item.cover:
-                extra["cover"] = self.item.cover
-
-            play_info = provider.get_play_info(self.item.id, extra)
+            play_info = resolve_item(self.item, self.extra_overrides)
+            if self.is_canceled:
+                return
             file_path = self._download(play_info)
             if self.is_canceled:
                 return
@@ -155,42 +156,49 @@ class DownloadThread(QThread):
     def _download(self, play_info: PlayInfo) -> Path:
         download_dir = Path(cfg.get(cfg.downloadFolder))
         download_dir.mkdir(parents=True, exist_ok=True)
-
-        with requests.get(
-            play_info.url,
-            headers={**REQUEST_HEADERS, **play_info.headers},
-            timeout=DOWNLOAD_TIMEOUT,
-            stream=True,
-        ) as response:
-            response.raise_for_status()
-            total_size = int(response.headers.get("content-length") or 0)
-            written_size = 0
-            last_emit_time = time.monotonic()
-            last_emit_size = 0
-            chunks = response.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE)
-            first_chunk = next(chunks, b"")
-            suffix = self._suffix(play_info, first_chunk)
-            file_path = self._unique_file_path(download_dir, suffix)
-            with file_path.open("wb") as file:
-                if first_chunk:
+        temp_path = download_dir / f".coco-{uuid.uuid4().hex}.part"
+        try:
+            with requests.get(
+                play_info.url, headers={**REQUEST_HEADERS, **play_info.headers},
+                timeout=DOWNLOAD_TIMEOUT, stream=True,
+            ) as response:
+                response.raise_for_status()
+                total_size = int(response.headers.get("content-length") or 0)
+                written_size = last_emit_size = 0
+                last_emit_time = time.monotonic()
+                chunks = response.iter_content(chunk_size=DOWNLOAD_CHUNK_SIZE)
+                first_chunk = next(chunks, b"")
+                suffix = checked_audio_extension(first_chunk, response.headers.get("content-type", ""),
+                                                 play_info.type, play_info.url)
+                with temp_path.open("wb") as file:
+                    if self.is_canceled:
+                        raise InterruptedError("Download canceled")
                     file.write(first_chunk)
                     written_size += len(first_chunk)
-                    self._emit_progress(written_size, total_size, last_emit_size, last_emit_time)
-                for chunk in chunks:
-                    if self.is_canceled:
-                        break
-                    if chunk:
-                        file.write(chunk)
-                        written_size += len(chunk)
-                        now = time.monotonic()
-                        if now - last_emit_time >= PROGRESS_INTERVAL:
-                            self._emit_progress(written_size, total_size, last_emit_size, last_emit_time)
-                            last_emit_time = now
-                            last_emit_size = written_size
-
-            self._emit_progress(written_size, total_size, last_emit_size, last_emit_time)
-
-        return file_path
+                    for chunk in chunks:
+                        if self.is_canceled:
+                            raise InterruptedError("Download canceled")
+                        if chunk:
+                            file.write(chunk)
+                            written_size += len(chunk)
+                            now = time.monotonic()
+                            if now - last_emit_time >= PROGRESS_INTERVAL:
+                                self._emit_progress(written_size, total_size, last_emit_size, last_emit_time)
+                                last_emit_time, last_emit_size = now, written_size
+                if self.is_canceled:
+                    raise InterruptedError("Download canceled")
+                if (total_size and not response.headers.get("content-encoding")
+                        and written_size != total_size):
+                    raise ValueError("音频下载不完整，请重试")
+                self._emit_progress(written_size, total_size, last_emit_size, last_emit_time)
+            # Serialize naming + promotion so simultaneous downloads of the same
+            # song never overwrite one another. No final file exists until done.
+            with _FILE_LOCK:
+                file_path = self._unique_file_path(download_dir, suffix)
+                temp_path.replace(file_path)
+            return file_path
+        finally:
+            temp_path.unlink(missing_ok=True)
 
     def _emit_progress(
         self,
@@ -223,7 +231,7 @@ class DownloadThread(QThread):
             candidate = download_dir / f"{base_name} ({index}).{suffix}"
             if not candidate.exists():
                 return candidate
-        return download_dir / f"{base_name}.{suffix}"
+        raise ValueError("同名文件过多，请更改文件名或下载目录")
 
     def _filename_stem(self) -> str:
         rule = cfg.get(cfg.downloadFilenameRule)
@@ -236,28 +244,10 @@ class DownloadThread(QThread):
         return f"{self.item.title} - {self.item.artist}"
 
     def _suffix(self, play_info: PlayInfo, first_chunk: bytes) -> str:
-        detected_suffix = self._suffix_from_header(first_chunk)
-        if detected_suffix:
-            return detected_suffix
-
-        suffix = str(play_info.type or "").strip().lower().lstrip(".")
-        if suffix:
-            return suffix
-        clean_url = play_info.url.split("?", 1)[0]
-        if "." in clean_url:
-            return clean_url.rsplit(".", 1)[-1].lower()
-        return "mp3"
+        return checked_audio_extension(first_chunk, declared=play_info.type, url=play_info.url)
 
     def _suffix_from_header(self, first_chunk: bytes) -> str:
-        if len(first_chunk) < 4:
-            return ""
-        if first_chunk.startswith(b"ID3") or first_chunk[:2] in {b"\xff\xfb", b"\xff\xf3", b"\xff\xf2"}:
-            return "mp3"
-        if first_chunk[:2] in {b"\xff\xf1", b"\xff\xf9"}:
-            return "aac"
-        if first_chunk[4:8] == b"ftyp":
-            return "m4a"
-        return ""
+        return audio_extension(first_chunk)
 
 
 class DownloadService(QObject):
@@ -293,8 +283,6 @@ class DownloadService(QObject):
         for thread, running_task in list(self.threads.items()):
             if running_task.id == task_info.id:
                 thread.cancel()
-                self.threads.pop(thread, None)
-                self._start_next_tasks()
                 return
 
     def _start_next_tasks(self) -> None:
@@ -306,6 +294,7 @@ class DownloadService(QObject):
         task_info.status = DownloadTaskStatus.DOWNLOADING
         signalBus.downloadTaskUpdated.emit(task_info)
         thread = DownloadThread(task_info.item, task_info, task_info.extra_overrides, self)
+        retain_thread(thread)
         self.threads[thread] = task_info
         thread.progressChanged.connect(
             lambda progress, download_thread=thread: self._on_progress(download_thread, progress)
@@ -316,17 +305,12 @@ class DownloadService(QObject):
         thread.downloadFailed.connect(
             lambda message, download_thread=thread: self._on_failed(download_thread, message)
         )
-        thread.downloadFinished.connect(lambda *_: self._remove_thread(thread))
-        thread.downloadFailed.connect(lambda *_: self._remove_thread(thread))
-        thread.downloadFinished.connect(thread.deleteLater)
-        thread.downloadFailed.connect(thread.deleteLater)
         thread.finished.connect(lambda *_: self._remove_thread(thread))
-        thread.finished.connect(thread.deleteLater)
         thread.start()
 
     def _on_progress(self, thread: DownloadThread, progress: DownloadProgressInfo) -> None:
         task_info = self.threads.get(thread)
-        if task_info is None:
+        if task_info is None or thread.is_canceled:
             return
         signalBus.downloadProgressChanged.emit(task_info, progress)
 

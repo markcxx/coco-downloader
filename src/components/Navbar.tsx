@@ -7,6 +7,9 @@ import { useState, MouseEvent } from "react";
 import { useTheme } from "next-themes";
 import DeveloperPanel from "./DeveloperPanel";
 import { DonationModal } from "./DonationModal";
+import localFont from "next/font/local";
+
+const geo = localFont({ src: "../../public/fonts/geo/Geo-Regular.ttf", display: "swap" });
 
 export function Navbar() {
   const [showDevPanel, setShowDevPanel] = useState(false);
@@ -56,10 +59,10 @@ export function Navbar() {
 
   return (
     <>
-      <nav className="h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-sky-100 dark:border-slate-800 z-50 px-4 md:px-8 flex items-center justify-between transition-colors duration-300">
+      <nav className={`coco-navbar  bg-white/90 dark:bg-[#17191c]/95 backdrop-blur-md border-b border-black/5 dark:border-white/10 z-50 px-4 md:px-8 transition-colors duration-300`}>
         <Link href="/" className="group flex items-center gap-3">
           <Image src="/images/coco-downloader.svg" alt="CoCo Downloader" width={40} height={40} className="h-10 w-10 transition-transform group-hover:scale-105" />
-          <span className="hidden text-xl font-bold tracking-normal text-[#005faa] dark:text-[#a3c9ff] sm:inline">
+          <span className={`${geo.className} hidden text-[28px] leading-none tracking-normal text-[#005faa] dark:text-[#a3c9ff] sm:inline`}>
             CoCo Downloader
           </span>
         </Link>

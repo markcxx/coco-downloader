@@ -5,9 +5,11 @@ from typing import Any
 from requests import RequestException
 
 from app.models.music import MusicItem, PlayInfo
+from app.services.errors import ProviderNetworkError
 
 from .base import MusicProvider
 from .http_client import ProviderHttpClient
+from .utils import extract_ext, validate_audio_url
 
 LOGGER = logging.getLogger(__name__)
 
@@ -26,6 +28,12 @@ HEADERS = {
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
 }
 
+API_BASE_URLS = (
+    "https://www.qqmp3.vip",
+    "https://bb.qqmp3.vip",
+    "https://api.qqmp3.vip",
+)
+
 
 class QQMp3Provider(MusicProvider):
     def __init__(self, name: str = "qqmp3") -> None:
@@ -33,33 +41,51 @@ class QQMp3Provider(MusicProvider):
         self._http = ProviderHttpClient()
 
     def search(self, query: str, limit: int = 20, offset: int = 0) -> list[MusicItem]:
-        try:
-            data = self._http.get_json(
-                "https://api.qqmp3.vip/api/songs.php",
-                headers=HEADERS,
-                params={"type": "search", "keyword": query},
-            )
-        except RequestException:
-            LOGGER.exception("QQMp3 search error")
-            return []
-
-        items = data.get("data", []) if isinstance(data, dict) else []
-        if not isinstance(items, list):
-            return []
-        return [item for item in (self._map_item(raw_item) for raw_item in items) if item]
+        last_error: Exception | None = None
+        for base_url in API_BASE_URLS:
+            try:
+                data = self._http.get_json(
+                    f"{base_url}/api/songs.php",
+                    headers=HEADERS,
+                    params={"type": "search", "keyword": query},
+                    timeout=15,
+                )
+                if not isinstance(data, dict):
+                    raise ValueError("Invalid search response")
+                items = data.get("data", [])
+                if data.get("code") != 200 or not isinstance(items, list):
+                    raise ValueError(str(data.get("message") or data.get("msg") or "Invalid search response"))
+                mapped_items = [item for item in (self._map_item(raw_item) for raw_item in items) if item]
+                return mapped_items[offset:offset + limit]
+            except (ProviderNetworkError, RequestException, ValueError) as error:
+                last_error = error
+        if last_error:
+            LOGGER.warning("QQMp3 search failed: %s", last_error)
+            raise last_error
+        return []
 
     def get_play_info(self, song_id: str, extra: dict[str, Any] | None = None) -> PlayInfo:
-        data = self._http.get_json(
-            "https://api.qqmp3.vip/api/kw.php",
-            headers=HEADERS,
-            params={"rid": song_id, "type": "json", "level": "exhigh", "lrc": "true"},
-        )
-        payload = data.get("data", {}) if isinstance(data, dict) else {}
-        url = payload.get("url") if isinstance(payload, dict) else None
-        if data.get("code") != 200 or not isinstance(url, str) or not url:
-            raise ValueError("Failed to get play info")
-        cover = payload.get("pic") if isinstance(payload.get("pic"), str) else None
-        return PlayInfo(url=url, type="mp3", cover=cover)
+        last_error: Exception | None = None
+        for base_url in API_BASE_URLS:
+            try:
+                data = self._http.get_json(
+                    f"{base_url}/api/kw.php",
+                    headers=HEADERS,
+                    params={"rid": song_id, "type": "json", "level": "exhigh", "lrc": "true"},
+                    timeout=15,
+                )
+                if not isinstance(data, dict):
+                    raise ValueError("Invalid play response")
+                payload = data.get("data", {})
+                url = payload.get("url") if isinstance(payload, dict) else None
+                if data.get("code") != 200 or not isinstance(url, str) or not url:
+                    raise ValueError(str(data.get("msg") or "Failed to get play info"))
+                cover = payload.get("pic") if isinstance(payload.get("pic"), str) else None
+                url = validate_audio_url(self._http, url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
+                return PlayInfo(url=url, type=extract_ext(url), cover=cover)
+            except (ProviderNetworkError, RequestException, ValueError) as error:
+                last_error = error
+        raise last_error or ValueError("Failed to get play info")
 
     def _map_item(self, item: Any) -> MusicItem | None:
         if not isinstance(item, dict) or not item.get("rid"):

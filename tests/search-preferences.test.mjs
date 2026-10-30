@@ -75,8 +75,7 @@ test('search request includes the selected channel', async () => {
   }
   visit(ast);
   let requested;
-  const context = { URLSearchParams, query: 'test', provider: 'qq', SEARCH_PAGE_SIZE: 20,
-    setHasMoreResults() {}, fetch: async url => { requested = url; return { json: async () => ({ items: [] }) }; } };
+  const context = { URLSearchParams, query: 'test', provider: 'qq', fetchJson: async url => { requested = url; return { items: [] }; } };
   vm.runInNewContext(ts.transpileModule(`const ${declaration};globalThis.search = fetchSearchPage;`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context);
   await context.search(0);
   assert.equal(new URL(requested, 'https://local').searchParams.get('provider'), 'qq');

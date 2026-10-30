@@ -4,7 +4,6 @@ from enum import Enum
 
 from PyQt5.QtCore import QEasingCurve, QPoint, QPropertyAnimation, QSize, Qt, pyqtSignal
 from PyQt5.QtGui import QFont, QFontMetrics, QIcon
-from PyQt5.QtSvg import QSvgWidget
 from PyQt5.QtWidgets import (
     QCheckBox,
     QFrame,
@@ -36,7 +35,6 @@ def _label_font(pixel_size: int) -> QFont:
 class WidgetState(Enum):
     """Widget state enumeration"""
     NORMAL = "notSelected-notPlay"
-    PLAY = "notSelected-play"
     SELECTED = "selected"
 
 
@@ -45,9 +43,6 @@ class CardState(Enum):
     LEAVE = "notSelected-leave"
     ENTER = "notSelected-enter"
     PRESSED = "notSelected-pressed"
-    PLAY_LEAVE = "play-leave"
-    PLAY_ENTER = "play-enter"
-    PLAY_PRESSED = "play-pressed"
     SELECTED_LEAVE = "selected-leave"
     SELECTED_ENTER = "selected-enter"
     SELECTED_PRESSED = "selected-pressed"
@@ -60,8 +55,6 @@ class SongInfo:
     singer: str
     album: str
     duration: str
-    is_playing: bool = False
-    can_preview: bool = True
 
 
 class IconButton(QToolButton):
@@ -84,9 +77,6 @@ class IconButton(QToolButton):
         name = self.icon_type
         if state == WidgetState.SELECTED:
             file_name = f"{name}_white.svg"
-        elif state == WidgetState.PLAY:
-            suffix = "white" if isDarkTheme() else "black"
-            file_name = f"{name}_green_{suffix}.svg"
         else:
             suffix = "white" if isDarkTheme() else "black"
             file_name = f"{name}_{suffix}.svg"
@@ -103,25 +93,20 @@ class IconButton(QToolButton):
 class ButtonGroup(QWidget):
     """Button group container"""
 
-    def __init__(self, can_preview: bool = True, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.can_preview = can_preview
-        self.play_button = IconButton("Play", self)
         self.add_button = IconButton("Download", self)
 
         self.setAttribute(Qt.WA_StyledBackground)
-        self.setFixedSize(140, 60)
+        self.setFixedSize(80, 60)
         self.setObjectName("buttonGroup")
 
-        self.play_button.move(20, 0)
-        self.add_button.move(80, 0)
-        self.play_button.setEnabled(can_preview)
+        self.add_button.move(20, 0)
 
         self.set_state(CardState.LEAVE)
 
     def set_button_state(self, state: WidgetState) -> None:
         """Set state for all buttons"""
-        self.play_button.set_state(state)
         self.add_button.set_state(state)
 
     def set_state(self, state: CardState) -> None:
@@ -134,18 +119,14 @@ class ButtonGroup(QWidget):
 class SongNameCard(QWidget):
     """Song name card with checkbox and buttons"""
 
-    def __init__(self, title: str, can_preview: bool = True, parent: QWidget | None = None) -> None:
+    def __init__(self, title: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.song_name = title
-        self.can_preview = can_preview
-        self.is_play = False
         self.song_name_width = 0
 
         self.check_box = QCheckBox(self)
-        self.playing_label = QSvgWidget(self)
         self.song_name_label = QLabel(title, self)
-        self.button_group = ButtonGroup(can_preview, self)
-        self.play_button = self.button_group.play_button
+        self.button_group = ButtonGroup(self)
         self.add_button = self.button_group.add_button
 
         self._init_ui()
@@ -163,11 +144,8 @@ class SongNameCard(QWidget):
         self.song_name_label.setFont(_label_font(16))
         self.check_box.setFocusPolicy(Qt.NoFocus)
 
-        self.playing_label.setFixedSize(17, 17)
-        self.playing_label.hide()
 
         self.check_box.move(15, 18)
-        self.playing_label.move(56, 21)
         self.song_name_label.move(57, 18)
 
         self.set_widgets_hidden(True)
@@ -185,8 +163,8 @@ class SongNameCard(QWidget):
 
     def _move_button_group(self) -> None:
         """Move button group to appropriate position"""
-        if self.song_name_width + self.song_name_label.x() >= self.width() - 140:
-            x = self.width() - 140
+        if self.song_name_width + self.song_name_label.x() >= self.width() - self.button_group.width():
+            x = self.width() - self.button_group.width()
         else:
             x = self.song_name_width + self.song_name_label.x()
         self.button_group.move(x, 0)
@@ -200,40 +178,20 @@ class SongNameCard(QWidget):
         """Set button group state"""
         self.button_group.set_state(state)
 
-    def set_widget_state(self, state: WidgetState, song_exists: bool = True) -> None:
+    def set_widget_state(self, state: WidgetState) -> None:
         """Set widget state"""
         self.check_box.setProperty("state", state.value)
         self.song_name_label.setProperty("state", state.value)
         self.button_group.set_button_state(state)
 
-        if song_exists:
-            if state in {WidgetState.SELECTED, WidgetState.PLAY}:
-                icon = "Playing_white.svg"
-            else:
-                icon = "Playing_green_black.svg"
-        else:
-            icon = "Info_white.svg" if state == WidgetState.SELECTED else "Info_red.svg"
-
-        self.playing_label.load(f":/app/images/song_list_widget/{icon}")
-
         for widget in (self.check_box, self.song_name_label, self.button_group):
             widget.style().unpolish(widget)
             widget.style().polish(widget)
-
-    def set_play(self, is_play: bool, song_exists: bool = True) -> None:
-        """Set play state"""
-        self.is_play = is_play
-        self.playing_label.setVisible(is_play or (not song_exists))
-        self.set_widgets_hidden(not is_play)
-        x = 83 if is_play or (not song_exists) else 57
-        self.song_name_label.move(x, self.song_name_label.y())
-        self._move_button_group()
 
 
 class SongRow(QWidget):
     """Song row widget with animations"""
 
-    playRequested = pyqtSignal()
     downloadRequested = pyqtSignal()
     selectionChanged = pyqtSignal(bool)
     DELTAS = [13, 6, -3, -6]
@@ -241,9 +199,7 @@ class SongRow(QWidget):
     def __init__(self, song: SongInfo, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.song = song
-        self.song_exists = True
         self.is_selected = False
-        self.is_playing = song.is_playing
         self.is_pressed = False
         self.has_enter = False
 
@@ -252,9 +208,7 @@ class SongRow(QWidget):
         self._setup_animations()
         self._connect_signals()
 
-        self.set_play(self.is_playing)
-        if not self.is_playing:
-            self.set_selected(False)
+        self.set_selected(False)
 
     def _init_ui(self) -> None:
         """Initialize UI"""
@@ -262,7 +216,7 @@ class SongRow(QWidget):
         self.setAttribute(Qt.WA_StyledBackground)
         self.setMouseTracking(True)
 
-        self.song_name_card = SongNameCard(self.song.title, self.song.can_preview, self)
+        self.song_name_card = SongNameCard(self.song.title, self)
         self.singer_label = QLabel(self.song.singer, self)
         self.album_label = QLabel(self.song.album, self)
         self.duration_label = QLabel(self.song.duration, self)
@@ -318,7 +272,6 @@ class SongRow(QWidget):
 
     def _connect_signals(self) -> None:
         """Connect signals"""
-        self.song_name_card.play_button.clicked.connect(self._toggle_play)
         self.song_name_card.add_button.clicked.connect(self.downloadRequested)
         self.song_name_card.check_box.toggled.connect(self._on_checked)
 
@@ -336,7 +289,7 @@ class SongRow(QWidget):
 
     def _apply_state(self, widget_state: WidgetState, card_state: CardState) -> None:
         """Apply state to all widgets"""
-        self.song_name_card.set_widget_state(widget_state, self.song_exists)
+        self.song_name_card.set_widget_state(widget_state)
         self.song_name_card.set_button_group_state(card_state)
 
         for label in self.labels:
@@ -354,23 +307,8 @@ class SongRow(QWidget):
         self.song_name_card.check_box.setChecked(selected)
         self.song_name_card.check_box.blockSignals(False)
         self._apply_state(self._current_widget_state(), self._current_card_state())
-        self.song_name_card.set_widgets_hidden(not self.has_enter and not self.is_playing)
+        self.song_name_card.set_widgets_hidden(not self.has_enter)
 
-    def set_play(self, is_playing: bool) -> None:
-        """Set play state"""
-        self.is_playing = is_playing
-        self.song_name_card.set_play(is_playing, self.song_exists)
-        self._apply_state(self._current_widget_state(), self._current_card_state())
-
-        if not self.has_enter and not self.is_selected and not self.is_playing:
-            self.song_name_card.button_group.hide()
-            self.song_name_card.check_box.hide()
-
-    def _toggle_play(self) -> None:
-        """Toggle play state"""
-        if not self.song.can_preview:
-            return
-        self.playRequested.emit()
 
     def _on_checked(self, checked: bool) -> None:
         """Handle checkbox toggled"""
@@ -409,8 +347,6 @@ class SongRow(QWidget):
 
         if self.is_selected:
             card_state = CardState.SELECTED_PRESSED
-        elif self.is_playing:
-            card_state = CardState.PLAY_PRESSED
         else:
             card_state = CardState.PRESSED
         self._apply_state(self._current_widget_state(), card_state)
@@ -433,26 +369,15 @@ class SongRow(QWidget):
 
         self._apply_state(self._current_widget_state(), self._current_card_state())
 
-    def mouseDoubleClickEvent(self, event) -> None:
-        """Play the row with the same behavior as the play button."""
-        super().mouseDoubleClickEvent(event)
-        if event.button() != Qt.LeftButton:
-            return
-        self._toggle_play()
-        event.accept()
 
     def _current_widget_state(self) -> WidgetState:
         if self.is_selected:
             return WidgetState.SELECTED
-        if self.is_playing:
-            return WidgetState.PLAY
         return WidgetState.NORMAL
 
     def _current_card_state(self) -> CardState:
         if self.is_selected:
             return CardState.SELECTED_ENTER if self.has_enter else CardState.SELECTED_LEAVE
-        if self.is_playing:
-            return CardState.PLAY_ENTER if self.has_enter else CardState.PLAY_LEAVE
         return CardState.ENTER if self.has_enter else CardState.LEAVE
 
 
@@ -460,7 +385,6 @@ class SongListWidget(QListWidget):
     """Song list widget"""
 
     loadMoreRequested = pyqtSignal()
-    songPlayRequested = pyqtSignal(int)
     songDownloadRequested = pyqtSignal(int)
     selectionCountChanged = pyqtSignal(int)
 
@@ -550,21 +474,12 @@ class SongListWidget(QListWidget):
         item = QListWidgetItem(self)
         item.setSizeHint(QSize(1090, 60))
         row = SongRow(song, self)
-        row.playRequested.connect(lambda checked=False, song_row=row: self._emit_song_play_requested(song_row))
         row.downloadRequested.connect(lambda checked=False, song_row=row: self._emit_song_download_requested(song_row))
         row.selectionChanged.connect(lambda checked=False: self.selectionCountChanged.emit(len(self.selected_song_indices())))
         self.addItem(item)
         self.setItemWidget(item, row)
         self._song_count += 1
 
-    def _emit_song_play_requested(self, row: SongRow) -> None:
-        for index in range(self.count()):
-            item = self.item(index)
-            if item is self._load_more_item:
-                continue
-            if self.itemWidget(item) is row:
-                self.songPlayRequested.emit(index)
-                return
 
     def _emit_song_download_requested(self, row: SongRow) -> None:
         for index in range(self.count()):
@@ -575,15 +490,6 @@ class SongListWidget(QListWidget):
                 self.songDownloadRequested.emit(index)
                 return
 
-    def set_playing_index(self, playing_index: int) -> None:
-        """Sync list rows with the global playback state"""
-        for index in range(self.count()):
-            item = self.item(index)
-            if item is self._load_more_item:
-                continue
-            row = self.itemWidget(item)
-            if isinstance(row, SongRow):
-                row.set_play(index == playing_index)
 
     def selected_song_indices(self) -> list[int]:
         """Return selected song row indexes, excluding the load-more row."""

@@ -2,7 +2,7 @@
 from pathlib import Path
 
 import requests
-from PyQt5.QtCore import QObject, QSize, Qt, QThread, QUrl, pyqtSignal
+from PyQt5.QtCore import QObject, Qt, QThread, QUrl, pyqtSignal
 from PyQt5.QtGui import QColor, QDesktopServices, QPainter, QPainterPath, QPen, QPixmap
 from PyQt5.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout
 
@@ -21,8 +21,10 @@ from qfluentwidgets import (
 )
 
 from app.services.download_service import DownloadTaskInfo, DownloadTaskStatus
+from app.services.remote_asset import get_remote_asset
+from app.services.thread_lifecycle import retain_thread
 
-DEFAULT_COVER = ":/app/images/play_bar/album_200_200.png"
+DEFAULT_COVER = ":/app/images/logo/CocoDownloader.png"
 COVER_TIMEOUT = 10
 COVER_HEADERS = {
     "User-Agent": (
@@ -45,7 +47,7 @@ class CoverLoadThread(QThread):
         if not self.cover_url.startswith("http"):
             return
         try:
-            response = requests.get(self.cover_url, headers=COVER_HEADERS, timeout=COVER_TIMEOUT)
+            response = get_remote_asset(self.cover_url, headers=COVER_HEADERS, timeout=COVER_TIMEOUT)
             response.raise_for_status()
             if not self.isInterruptionRequested():
                 self.loaded.emit(response.content)
@@ -234,9 +236,9 @@ class DownloadTaskCard(CardWidget):
             self.coverLabel.setCover(QPixmap(cover))
             return
 
-        thread = CoverLoadThread(cover, self)
+        thread = CoverLoadThread(cover)
+        retain_thread(thread)
         thread.loaded.connect(self._on_cover_loaded)
-        thread.finished.connect(thread.deleteLater)
         thread.start()
         self.coverThread = thread
 

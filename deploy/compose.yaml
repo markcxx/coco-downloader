@@ -1,0 +1,18 @@
+services:
+  app:
+    image: ${COCO_IMAGE:?COCO_IMAGE is required}
+    container_name: coco-downloader
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3004:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

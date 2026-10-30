@@ -17,6 +17,8 @@ QT_PLUGIN_FAMILIES = "sensible"
 LOGO_ICON = "app/resource/images/logo/CocoDownloader.ico"
 LOGO_PNG = "app/resource/images/logo/CocoDownloader.png"
 NUITKA_COMMAND = [sys.executable, "-m", "nuitka"]
+GDSTUDIO_PACKAGES = ["--include-package=curl_cffi", "--include-package-data=curl_cffi",
+                     "--include-package=certifi", "--include-package-data=certifi"]
 
 
 def _copy_path(source: Path, target: Path) -> None:
@@ -48,10 +50,13 @@ def _copy_runtime_dependencies() -> None:
 def _windows_args() -> list[str]:
     return [
         *NUITKA_COMMAND,
+        *GDSTUDIO_PACKAGES,
         "--standalone",
-        "--windows-disable-console",
+        "--windows-console-mode=disable",
         "--assume-yes-for-downloads",
-        "--mingw64",
+        "--msvc=latest",
+        "--jobs=4",
+        f"--report={BUILD_DIR / 'compilation-report.xml'}",
         "--plugin-enable=pyqt5",
         f"--include-qt-plugins={QT_PLUGIN_FAMILIES}",
         f"--windows-icon-from-ico={LOGO_ICON}",
@@ -70,6 +75,7 @@ def _windows_args() -> list[str]:
 def _macos_args() -> list[str]:
     return [
         *NUITKA_COMMAND,
+        *GDSTUDIO_PACKAGES,
         "--standalone",
         "--macos-create-app-bundle",
         "--macos-disable-console",
@@ -90,6 +96,7 @@ def _macos_args() -> list[str]:
 def _linux_args() -> list[str]:
     return [
         *NUITKA_COMMAND,
+        *GDSTUDIO_PACKAGES,
         "--standalone",
         "--assume-yes-for-downloads",
         "--plugin-enable=pyqt5",

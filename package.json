@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "antd": "^6.2.0",
@@ -15,6 +16,7 @@
     "cheerio": "^1.1.2",
     "clsx": "^2.1.1",
     "framer-motion": "^12.26.2",
+    "impers": "0.1.2",
     "lucide-react": "^0.562.0",
     "next": "16.1.2",
     "next-themes": "^0.4.6",
@@ -32,5 +34,8 @@
     "eslint-config-next": "16.1.2",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": "^22.23.4 || ^24.22.1 || ^26.12.1"
   }
 }

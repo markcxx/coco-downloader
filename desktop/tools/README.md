@@ -1,119 +1,56 @@
-# Resource Compilation Tools
+# 桌面开发工具
 
-本目录包含用于编译 Qt 资源文件的工具脚本。
+以下命令均在 `desktop` 目录执行，并使用已安装依赖的虚拟环境。Windows 将 `.venv/bin/python` 替换为 `.\.venv\Scripts\python.exe`。
 
-## pyrcc5 - Qt Resource Compiler
+## 编译 Qt 资源
 
-### 什么是 pyrcc5？
-
-`pyrcc5` 是 PyQt5 的资源编译器，用于将 `.qrc` 资源文件（包含图片、图标、样式表等）编译为 Python 模块。
-
-### 使用方法
-
-#### 方法 1：使用包装脚本（推荐）
+推荐直接调用 PyQt5 自带的资源编译器：
 
 ```bash
-# 编译单个 qrc 文件
-python tools/compile_rc.py app/resource/resource.qrc -o app/common/resource.py
-
-# 如果有多个资源文件
-python tools/compile_rc.py app/resource/icons.qrc -o app/common/icons_rc.py
+.venv/bin/python -m PyQt5.pyrcc_main app/resource/resource.qrc -o app/common/resource.py
 ```
 
-#### 方法 2：直接使用 Python 模块
+资源被嵌入生成的 Python 模块。修改图片、QSS 或 `.qrc` 后，重新编译并重启程序。不要手动编辑 `app/common/resource.py`。
+
+`make_compile_script.py` 可以在 `desktop` 目录生成 `compile_resources.bat` 和 `compile_resources.sh`；生成的脚本使用 PATH 中的 `python`，运行前应激活虚拟环境。
 
 ```bash
-python -m PyQt5.pyrcc_main app/resource/resource.qrc -o app/common/resource.py
+.venv/bin/python tools/make_compile_script.py
 ```
 
-#### 方法 3：创建批处理脚本
-
-在项目根目录运行：
-```bash
-# Windows
-python tools/make_compile_script.py
-
-# 然后直接使用
-./compile_resources.bat   # Windows
-./compile_resources.sh    # Linux/Mac
-```
-
-### QRC 文件示例
-
-创建 `app/resource/resource.qrc`：
-
-```xml
-<!DOCTYPE RCC>
-<RCC version="1.0">
-    <qresource prefix="/app">
-        <file>images/logo.png</file>
-        <file>images/icon.png</file>
-    </qresource>
-    <qresource prefix="/qss">
-        <file>qss/light.qss</file>
-        <file>qss/dark.qss</file>
-    </qresource>
-</RCC>
-```
-
-### 在代码中使用编译后的资源
+Qt 资源不能通过 Python 的 `open()` 读取，应使用 Qt API：
 
 ```python
-# 导入编译后的资源模块
-from app.common import resource
+from PyQt5.QtCore import QFile, QTextStream
+from PyQt5.QtGui import QIcon
+from app.common import resource  # 注册编译后的资源
 
-# 使用资源路径（注意前缀）
-icon = QIcon(':/app/images/logo.png')
-
-# 或读取 QSS
-with open(':/qss/light.qss', 'r') as f:
-    stylesheet = f.read()
+icon = QIcon(":/app/images/logo/CocoDownloader.png")
+qss = QFile(":/app/qss/light/song_list_widget.qss")
+if qss.open(QFile.ReadOnly | QFile.Text):
+    stylesheet = QTextStream(qss).readAll()
+    qss.close()
 ```
 
-### 常见问题
+## 渠道联网探测
 
-1. **找不到 pyrcc5 命令**
-   - 使用上面的 Python 脚本包装器即可
+`probe_providers.py` 检查渠道搜索、音频地址解析和少量音频字节，不启动播放器，不保存完整歌曲。探测依赖外部服务，可能因网络或服务限流而失败。
 
-2. **编译后的文件很大**
-   - 正常现象，资源会被 base64 编码嵌入 Python 文件
-   - 考虑只包含必需的资源
-
-3. **更新资源后没有生效**
-   - 重新编译 qrc 文件
-   - 重启应用
-
-### 自动化编译
-
-可以在开发时使用文件监听自动编译：
-
-```python
-# 添加到项目构建脚本
-import subprocess
-import os
-
-qrc_file = 'app/resource/resource.qrc'
-output_file = 'app/common/resource.py'
-
-subprocess.run([
-    'python', '-m', 'PyQt5.pyrcc_main',
-    qrc_file, '-o', output_file
-])
+```bash
+.venv/bin/python tools/probe_providers.py --provider at38-netease --query 晴天
+.venv/bin/python tools/probe_providers.py --only at38-netease at38-qq --output build/provider-probe.json
 ```
 
-## 相关工具
+不指定 `--only` 时探测注册表中的所有渠道。仅提供源站入口的渠道不返回音频，不能用音频校验结果判断网盘保存是否成功。该脚本不支持桌面播放验证参数。
 
-- **pyuic5**: UI 文件编译器（.ui -> .py）
-  ```bash
-  python -m PyQt5.uic.pyuic input.ui -o output.py
-  ```
+## 其他 Qt 工具
 
-- **pylupdate5**: 翻译文件生成器（.py -> .ts）
-  ```bash
-  python -m PyQt5.pylupdate_main project.pro
-  ```
+```bash
+# 将 .ui 编译成 Python
+.venv/bin/python -m PyQt5.uic.pyuic input.ui -o output.py
 
-- **lrelease**: 翻译文件编译器（.ts -> .qm）
-  ```bash
-  lrelease translations/*.ts
-  ```
+# 从源码更新翻译源文件
+.venv/bin/python -m PyQt5.pylupdate_main project.pro
+```
+
+项目测试和启动说明见 [desktop/README.md](../README.md)。历史诊断文件见 [diagnostics/README.md](../diagnostics/README.md)。

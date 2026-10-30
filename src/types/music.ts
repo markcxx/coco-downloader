@@ -12,6 +12,7 @@ export interface MusicItem {
 export interface PlayInfo {
   url: string;
   type: 'mp3' | 'm4a' | 'flac' | string;
+  delivery?: 'audio' | 'source-page';
   bitrate?: string;
   cover?: string;
 }
@@ -21,3 +22,5 @@ export interface MusicProvider {
   search(query: string, limit?: number, offset?: number): Promise<MusicItem[]>;
   getPlayInfo(id: string, extra?: unknown): Promise<PlayInfo>;
 }
+
+export type LyricData = { songid: string; provider: string; lines: Array<{time:number;text:string}>; lrc: string };

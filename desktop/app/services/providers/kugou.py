@@ -2,40 +2,27 @@
 import base64
 import logging
 from typing import Any
+from urllib.parse import urljoin
 
 from app.models.music import LyricData, MusicItem, PlayInfo
 from app.services.errors import ProviderNetworkError
 
 from .base import MusicProvider
 from .http_client import ProviderHttpClient
-from .utils import clean_lyric, extract_ext, is_http_url, parse_lrc_lines
+from .utils import clean_lyric, extract_ext, parse_lrc_lines, validate_audio_url
 
 LOGGER = logging.getLogger(__name__)
 REQUEST_TIMEOUT = 15
 SEARCH_API_URL = "https://songsearch.kugou.com/song_search_v2"
-CGG_API_URL = "https://music-api2.cenguigui.cn/"
+SVIP90_BASE_URL = "https://music.90svip.cn/"
 LYRIC_SEARCH_URL = "http://lyrics.kugou.com/search"
 LYRIC_DOWNLOAD_URL = "http://lyrics.kugou.com/download"
-HAITANG_API_URLS = [
-    "https://musicapi.haitangw.net/kgqq/kg.php",
-    "https://music.haitangw.cc/kgqq/kg.php",
-]
 SEARCH_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
     )
 }
-KUGOU_DOWNLOAD_OPTIONS = [
-    # {"value": "cenguigui-lossless", "parser": "cenguigui", "level": "lossless", "label": "无损音质", "quality": "lossless", "format": "flac/mp3"},
-    # {"value": "cenguigui-exhigh", "parser": "cenguigui", "level": "exhigh", "label": "高品质", "quality": "exhigh", "format": "mp3/flac"},
-    # {"value": "cenguigui-standard", "parser": "cenguigui", "level": "standard", "label": "标准音质", "quality": "standard", "format": "mp3"},
-    {"value": "haitang-hires", "parser": "haitang", "level": "hires", "label": "Hi-Res 音质", "quality": "hires", "format": "flac"},
-    {"value": "haitang-lossless", "parser": "haitang", "level": "lossless", "label": "无损音质", "quality": "lossless", "format": "flac/mp3"},
-    {"value": "haitang-exhigh", "parser": "haitang", "level": "exhigh", "label": "高品质", "quality": "exhigh", "format": "mp3/flac"},
-]
-
-
 def _normalize_limit(limit: int) -> int:
     return min(max(int(limit), 1), 30)
 
@@ -85,7 +72,7 @@ class KugouProvider(MusicProvider):
             )
         except ProviderNetworkError:
             LOGGER.exception("Kugou search error")
-            return []
+            raise
 
         payload = data.get("data", {}) if isinstance(data, dict) else {}
         items = payload.get("lists", []) if isinstance(payload, dict) else []
@@ -96,22 +83,9 @@ class KugouProvider(MusicProvider):
     def get_play_info(self, song_id: str, extra: dict[str, Any] | None = None) -> PlayInfo:
         context = extra or {}
         fallback_cover = _string_value(context.get("cover")) or None
-        if context.get("usage") == "playback":
-            return self._to_play_info(self._get_playback_url(song_id), fallback_cover)
-
-        selected_parser = str(context.get("selectedParser") or "").strip()
-        selected_level = str(context.get("selectedLevel") or "").strip()
-
-        if selected_parser == "cenguigui":
-            return self._to_play_info(self._get_by_cenguigui(song_id, self._selected_levels(selected_level)), fallback_cover)
-        if selected_parser == "haitang":
-            return self._to_play_info(self._get_by_haitang(song_id, self._selected_levels(selected_level)), fallback_cover)
-
-        try:
-            return self._to_play_info(self._get_by_cenguigui(song_id), fallback_cover)
-        except (ProviderNetworkError, ValueError):
-            LOGGER.warning("Kugou cenguigui fallback failed", exc_info=True)
-        return self._to_play_info(self._get_by_haitang(song_id), fallback_cover)
+        if context.get("selectedParser") not in {None, "", "90svip"}:
+            raise ValueError("该酷狗解析线路已下架，请重新搜索并选择可用渠道")
+        return self._to_play_info(self._get_by_90svip(song_id), fallback_cover)
 
     def get_lyric(self, song_id: str, extra: dict[str, Any] | None = None) -> LyricData:
         context = extra or {}
@@ -165,11 +139,10 @@ class KugouProvider(MusicProvider):
             provider=self.name,
             extra={
                 "cover": cover,
-                "selectedOption": "haitang-exhigh",
-                "selectedParser": "haitang",
-                "selectedLevel": "exhigh",
-                "selectedFormat": "flac",
-                "qualityOptions": KUGOU_DOWNLOAD_OPTIONS,
+                "selectedOption": "90svip",
+                "selectedParser": "90svip",
+                "selectedLevel": "",
+                "selectedFormat": "mp3",
                 "filename": filename or f"{title} - {artist}",
                 "duration": duration or -1,
             },
@@ -180,72 +153,33 @@ class KugouProvider(MusicProvider):
         union_cover = trans_param.get("union_cover") if isinstance(trans_param, dict) else None
         return _normalize_cover(union_cover or item.get("cover_url") or item.get("Image"))
 
-    def _get_playback_url(self, song_id: str) -> dict[str, str | None]:
-        try:
-            return self._get_by_haitang(song_id, ("exhigh", "lossless", "hires"))
-        except ValueError as error:
-            LOGGER.warning("Kugou haitang playback parser failed: %s", error)
-
-        try:
-            return self._get_by_cenguigui(song_id)
-        except (ProviderNetworkError, ValueError) as error:
-            LOGGER.warning("Kugou cenguigui playback parser failed: %s", error)
-            raise
-
-    def _get_by_cenguigui(
-        self,
-        song_id: str,
-        levels: tuple[str, ...] | None = None,
-    ) -> dict[str, str | None]:
-        for level in levels or ("lossless", "exhigh", "standard"):
-            data = self._http.get_json(
-                CGG_API_URL,
-                params={"kg": "", "id": song_id, "type": "song", "format": "json", "level": level},
-                timeout=REQUEST_TIMEOUT,
-            )
-            payload = data.get("data", {}) if isinstance(data, dict) else {}
-            url = str(payload.get("url") or "").strip() if isinstance(payload, dict) else ""
-            if not is_http_url(url):
-                continue
-            cover = payload.get("pic") if isinstance(payload.get("pic"), str) else None
-            return {"url": url, "bitrate": level, "cover": cover}
-        raise ValueError("Failed to get cenguigui url")
-
-    def _get_by_haitang(
-        self,
-        song_id: str,
-        levels: tuple[str, ...] | None = None,
-    ) -> dict[str, str | None]:
-        for api_url in HAITANG_API_URLS:
-            for level in levels or ("hires", "lossless", "exhigh"):
-                info = self._try_haitang(api_url, song_id, level)
-                if info:
-                    return info
-        raise ValueError("Failed to get haitang url")
-
-    def _try_haitang(
-        self,
-        api_url: str,
-        song_id: str,
-        level: str,
-    ) -> dict[str, str | None] | None:
-        try:
-            data = self._http.get_json(
-                api_url,
-                params={"type": "json", "id": song_id, "level": level},
-                timeout=REQUEST_TIMEOUT,
-            )
-        except ProviderNetworkError:
-            return None
-
-        payload = data.get("data", {}) if isinstance(data, dict) else {}
-        url = str(payload.get("url") or "").strip() if isinstance(payload, dict) else ""
-        if not is_http_url(url):
-            return None
-        return {"url": url, "bitrate": level, "cover": None}
-
-    def _selected_levels(self, selected_level: str) -> tuple[str, ...] | None:
-        return (selected_level,) if selected_level else None
+    def _get_by_90svip(self, song_id: str) -> dict[str, str | None]:
+        headers = {
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Referer": SVIP90_BASE_URL,
+            "User-Agent": SEARCH_HEADERS["User-Agent"],
+            "X-Requested-With": "XMLHttpRequest",
+        }
+        response = self._http.post_response(
+            SVIP90_BASE_URL,
+            headers=headers,
+            data={"input": song_id, "filter": "id", "type": "kugou", "page": "1"},
+            timeout=REQUEST_TIMEOUT,
+        )
+        data = response.json()
+        items = data.get("data", []) if isinstance(data, dict) else []
+        item = items[0] if isinstance(items, list) and items and isinstance(items[0], dict) else {}
+        raw_url = item.get("url") if isinstance(item.get("url"), str) else ""
+        if not raw_url:
+            raise ValueError("90svip returned no play url")
+        url = urljoin(SVIP90_BASE_URL, raw_url)
+        final_url = validate_audio_url(
+            self._http,
+            url,
+            headers=headers,
+            timeout=REQUEST_TIMEOUT,
+        )
+        return {"url": final_url, "bitrate": "320k", "cover": None}
 
     def _to_play_info(self, info: dict[str, str | None], fallback_cover: str | None) -> PlayInfo:
         url = str(info["url"])

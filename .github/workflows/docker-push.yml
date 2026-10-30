@@ -6,6 +6,10 @@ on:
     tags: [ 'v*' ]
   workflow_dispatch:
 
+concurrency:
+  group: coco-production
+  cancel-in-progress: false
+
 jobs:
   push:
     runs-on: ubuntu-latest
@@ -37,6 +41,7 @@ jobs:
           TAGS="${TAGS},${DOCKER_IMAGE_GHCR}:${BRANCH},${DOCKER_IMAGE_GHCR}:latest"
         fi
 
+        TAGS="${TAGS},${DOCKER_IMAGE_GHCR}:${GITHUB_SHA}"
         echo "tags=${TAGS}" >> $GITHUB_OUTPUT
         echo "### 🏷️ Image Tags" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
@@ -59,6 +64,7 @@ jobs:
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
+        pull: true
         context: .
         file: ./Dockerfile
         platforms: linux/amd64,linux/arm64
@@ -66,6 +72,40 @@ jobs:
         tags: ${{ steps.meta.outputs.tags }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
+        labels: |
+          org.opencontainers.image.revision=${{ github.sha }}
+
+  deploy:
+    needs: push
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    steps:
+    - uses: actions/checkout@v4
+    - name: Configure SSH
+      env:
+        DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+      run: |
+        install -m 700 -d ~/.ssh
+        printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+        printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+        chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+    - name: Deploy CoCo
+      env:
+        DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+        DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GHCR_USER: ${{ github.actor }}
+        IMAGE: ghcr.io/${{ github.repository }}:${{ github.sha }}
+      run: |
+        scp -P "$DEPLOY_PORT" deploy/compose.yaml deploy/deploy.sh "$DEPLOY_USER@$DEPLOY_HOST:/home/ubuntu/coco-deploy/"
+        printf '%s' "$GHCR_TOKEN" | ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" "docker login ghcr.io --username '$GHCR_USER' --password-stdin"
+        ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" "sh /home/ubuntu/coco-deploy/deploy.sh '$IMAGE'"
 
     - name: Generate summary
       run: |
