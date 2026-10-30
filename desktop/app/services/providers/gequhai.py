@@ -7,11 +7,13 @@ from typing import Any
 from bs4 import BeautifulSoup
 from requests import RequestException
 
+from app.services.errors import ProviderNetworkError
+
 from app.models.music import LyricData, MusicItem, PlayInfo
 
 from .base import MusicProvider
 from .http_client import ProviderHttpClient
-from .utils import absolute_url, clean_lyric, clean_text, decode_base64_url, extract_ext, is_http_url, parse_lrc_lines, quote_id
+from .utils import absolute_url, clean_lyric, clean_text, decode_base64_url, extract_ext, is_http_url, parse_lrc_lines, validate_audio_url
 
 LOGGER = logging.getLogger(__name__)
 REQUEST_TIMEOUT = 15
@@ -111,17 +113,31 @@ class GequhaiProvider(MusicProvider):
 
     def __init__(self) -> None:
         self._http = ProviderHttpClient()
+        self._session_ready = False
 
     def search(self, query: str, limit: int = 20, offset: int = 0) -> list[MusicItem]:
         try:
+            if not self._session_ready:
+                # A first visit may return a 403 while setting the session cookie.
+                for attempt in range(2):
+                    try:
+                        self._http.get_text("https://www.gequhai.com/", headers=SEARCH_HEADERS, timeout=REQUEST_TIMEOUT)
+                        self._session_ready = True
+                        break
+                    except ProviderNetworkError as error:
+                        cause = error.__cause__
+                        response = getattr(cause, "response", None)
+                        if attempt == 1 or response is None or response.status_code != 403:
+                            raise
             html = self._http.get_text(
-                f"https://www.gequhai.com/s/{quote_id(query)}",
+                "https://www.gequhai.com/search",
+                params={"s": query, "page": 1},
                 headers=SEARCH_HEADERS,
                 timeout=REQUEST_TIMEOUT,
             )
         except RequestException:
             LOGGER.exception("Gequhai search error")
-            return []
+            raise
 
         return [
             MusicItem(
@@ -131,7 +147,7 @@ class GequhaiProvider(MusicProvider):
                 provider=self.name,
                 extra={"playUrl": item["play_url"]},
             )
-            for item in _parse_search_html(html)
+            for item in _parse_search_html(html)[offset:offset + limit]
         ]
 
     def get_play_info(self, song_id: str, extra: dict[str, Any] | None = None) -> PlayInfo:
@@ -145,6 +161,7 @@ class GequhaiProvider(MusicProvider):
             download_url = extra_url if is_http_url(extra_url) else ""
         if not download_url:
             raise ValueError("Failed to resolve download url")
+        download_url = validate_audio_url(self._http, download_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=REQUEST_TIMEOUT)
 
         cover = app_data.get("mp3_cover") if isinstance(app_data.get("mp3_cover"), str) else None
         return PlayInfo(url=download_url, type=extract_ext(download_url), cover=cover)

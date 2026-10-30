@@ -26,29 +26,7 @@
         <file>images/song_list_widget/Download_white.svg</file>
         <file>images/song_list_widget/Info_red.svg</file>
         <file>images/song_list_widget/Info_white.svg</file>
-        <file>images/song_list_widget/Playing_green_black.svg</file>
-        <file>images/song_list_widget/Playing_green_white.svg</file>
-        <file>images/song_list_widget/Playing_white.svg</file>
-        <file>images/song_list_widget/Play_black.svg</file>
-        <file>images/song_list_widget/Play_green_black.svg</file>
-        <file>images/song_list_widget/Play_green_white.svg</file>
-        <file>images/song_list_widget/Play_white.svg</file>
 
-        <file>images/play_bar/album_200_200.png</file>
-        <file>images/play_bar/More.png</file>
-        <file>images/play_bar/Next.png</file>
-        <file>images/play_bar/Pause.png</file>
-        <file>images/play_bar/Play.png</file>
-        <file>images/play_bar/Previous.png</file>
-        <file>images/play_bar/RepeatAll.png</file>
-        <file>images/play_bar/RepeatOne.png</file>
-        <file>images/play_bar/Shuffle.png</file>
-        <file>images/play_bar/SmallestPlayMode.png</file>
-        <file>images/play_bar/Volume0.png</file>
-        <file>images/play_bar/Volume1.png</file>
-        <file>images/play_bar/Volume2.png</file>
-        <file>images/play_bar/Volume3.png</file>
-        <file>images/play_bar/Volumex.png</file>
 
         <file>i18n/app.zh_CN.qm</file>
         <file>i18n/app.zh_HK.qm</file>

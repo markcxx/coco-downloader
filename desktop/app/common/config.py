@@ -8,6 +8,7 @@ from qfluentwidgets import (qconfig, QConfig, ConfigItem, OptionsConfigItem, Boo
                             OptionsValidator, Theme, FolderValidator, ConfigSerializer)
 
 from .setting import CONFIG_FILE
+from app.services.channels import MUSIC_PLATFORMS
 
 class Language(Enum):
     """ Language enumeration """
@@ -61,6 +62,8 @@ class Config(QConfig):
 
 
     # main window
+    searchChannel = OptionsConfigItem("Search", "Channel", "gdstudio-netease", OptionsValidator(
+        [c.id for p in MUSIC_PLATFORMS for c in p.channels]))
     micaEnabled = ConfigItem("MainWindow", "MicaEnabled", isWin11(), BoolValidator())
     dpiScale = OptionsConfigItem(
         "MainWindow", "DpiScale", "Auto", OptionsValidator([1, 1.25, 1.5, 1.75, 2, "Auto"]), restart=True)

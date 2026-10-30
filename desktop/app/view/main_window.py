@@ -1,7 +1,7 @@
 # coding: utf-8
 from PyQt5.QtCore import Qt, QSize, QEasingCurve, QFile, QPropertyAnimation, QTextStream
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QApplication, QGraphicsOpacityEffect, QHBoxLayout, QVBoxLayout, QFrame, QWidget, QLabel
+from PyQt5.QtWidgets import QApplication, QHBoxLayout, QVBoxLayout, QFrame, QWidget, QLabel
 
 from qfluentwidgets import (NavigationBar, NavigationItemPosition, SplashScreen, isDarkTheme,
                             PopUpAniStackedWidget, InfoBar, InfoBarIcon, InfoBarPosition,
@@ -9,22 +9,18 @@ from qfluentwidgets import (NavigationBar, NavigationItemPosition, SplashScreen,
 from qfluentwidgets import FluentIcon as FIF
 from qframelesswindow import FramelessWindow, TitleBar
 
-from ..components import PlayBar
 from .download_interface import DownloadInterface
 from .home_interface import HomeInterface
-from .playing_interface import PlayingInterface
 from .setting_interface import SettingInterface
 from ..common.config import cfg
 from ..common.icon import Icon
 from ..common.setting import APP_LOGO_PATH
 from ..common.signal_bus import signalBus
-from ..common import resource
+from ..common import resource  # noqa: F401 - registers Qt resources
 from ..services.download_service import DownloadService
-from ..services.playback_service import PlaybackService
 
 
 TITLE_BAR_ICON_SIZE = 28
-PLAYING_NAV_ICON = getattr(FIF, "PLAY", FIF.HOME)
 
 
 class StackedWidget(QFrame):
@@ -49,25 +45,10 @@ class StackedWidget(QFrame):
             self.view.setCurrentWidget(widget, duration=300)
         else:
             self.view.setCurrentWidget(widget, True, False, 200, QEasingCurve.InQuad)
-        self._fade_in(widget)
 
     def setCurrentIndex(self, index, popOut=False):
         self.setCurrentWidget(self.view.widget(index), popOut)
 
-    def _fade_in(self, widget):
-        if widget.objectName() != "playingInterface":
-            widget.setGraphicsEffect(None)
-            return
-
-        effect = QGraphicsOpacityEffect(widget)
-        effect.setOpacity(0)
-        widget.setGraphicsEffect(effect)
-        self.opacityAnimation.stop()
-        self.opacityAnimation = QPropertyAnimation(effect, b"opacity", self)
-        self.opacityAnimation.setDuration(260)
-        self.opacityAnimation.setStartValue(0)
-        self.opacityAnimation.setEndValue(1)
-        self.opacityAnimation.start()
 
 
 class CustomTitleBar(TitleBar):
@@ -121,14 +102,10 @@ class MainWindow(FramelessWindow):
 
         self.navigationBar = NavigationBar(self)
         self.stackedWidget = StackedWidget(self)
-        self.playerBar = PlayBar(parent=self)
 
         self.homeInterface = HomeInterface(self)
         self.downloadInterface = DownloadInterface(self)
         self.settingInterface = SettingInterface(self)
-        self.playingInterface = PlayingInterface(self)
-        self.previousInterfaceBeforePlaying = self.homeInterface
-        self.playbackService = PlaybackService(self.playerBar, self)
         self.downloadService = DownloadService(self)
 
         self.initLayout()
@@ -138,18 +115,10 @@ class MainWindow(FramelessWindow):
 
     def connectSignalToSlot(self):
         signalBus.micaEnableChanged.connect(lambda x: None)
-        signalBus.playbackError.connect(self.showPlaybackError)
-        signalBus.switchToPlayingInterfaceRequested.connect(self.switchToPlayingInterface)
-        signalBus.playbackTrackChanged.connect(self.playingInterface.set_song)
-        signalBus.playbackStateChanged.connect(self.playingInterface.set_playing)
-        signalBus.playbackPositionChanged.connect(self.playingInterface.set_position)
-        signalBus.playbackDurationChanged.connect(self.playingInterface.set_duration)
-        signalBus.playbackCoverChanged.connect(self.playingInterface.set_cover)
         signalBus.downloadStarted.connect(self.showDownloadStarted)
         signalBus.downloadFinished.connect(self.showDownloadFinished)
         signalBus.downloadFailed.connect(self.showDownloadFailed)
         self.stackedWidget.view.currentChanged.connect(self.onCurrentInterfaceChanged)
-        self.playingInterface.exitRequested.connect(self.exitPlayingInterface)
         cfg.themeChanged.connect(self.setQss)
 
     def initLayout(self):
@@ -166,7 +135,6 @@ class MainWindow(FramelessWindow):
         self.contentLayout.setStretchFactor(self.stackedWidget, 1)
 
         self.mainLayout.addLayout(self.contentLayout, 1)
-        self.mainLayout.addWidget(self.playerBar)
 
         self.setLayout(self.mainLayout)
 
@@ -176,17 +144,6 @@ class MainWindow(FramelessWindow):
             FIF.HOME,
             '首页',
             FIF.HOME_FILL
-        )
-
-        self.playingInterface.setObjectName("playingInterface")
-        self.stackedWidget.addWidget(self.playingInterface)
-        self.navigationBar.addItem(
-            routeKey=self.playingInterface.objectName(),
-            icon=PLAYING_NAV_ICON,
-            text="正在播放",
-            onClick=self.switchToPlayingInterface,
-            selectedIcon=PLAYING_NAV_ICON,
-            position=NavigationItemPosition.TOP,
         )
 
         self.addSubInterface(
@@ -240,54 +197,19 @@ class MainWindow(FramelessWindow):
     def switchTo(self, widget):
         self.setNormalContentMode()
         self.navigationBar.show()
-        self.playerBar.show()
         self.stackedWidget.setCurrentWidget(widget)
 
     def onCurrentInterfaceChanged(self, index):
         widget = self.stackedWidget.widget(index)
-        if widget is self.playingInterface:
-            return
         self.navigationBar.setCurrentItem(widget.objectName())
 
-    def switchToPlayingInterface(self):
-        current_widget = self.stackedWidget.view.currentWidget()
-        if current_widget is not self.playingInterface:
-            self.previousInterfaceBeforePlaying = current_widget
-        self.setPlayingContentMode()
-        self.navigationBar.setCurrentItem(self.playingInterface.objectName())
-        self.navigationBar.hide()
-        self.playerBar.hide()
-        self.stackedWidget.setCurrentWidget(self.playingInterface)
-        self.playingInterface.show_play_bar()
 
-    def exitPlayingInterface(self):
-        self.setNormalContentMode()
-        self.navigationBar.show()
-        self.playerBar.show()
-        self.stackedWidget.setCurrentWidget(self.previousInterfaceBeforePlaying, popOut=True)
 
-    def setPlayingContentMode(self):
-        self.mainLayout.setContentsMargins(0, 0, 0, 0)
-        self.titleBar.setStyleSheet(
-            "TitleBar{background: transparent;}"
-            "QLabel#titleLabel{color: rgba(255,255,255,220); background: transparent;}"
-        )
-        self.titleBar.raise_()
 
     def setNormalContentMode(self):
         self.mainLayout.setContentsMargins(0, 48, 0, 0)
         self.titleBar.setStyleSheet("")
 
-    def showPlaybackError(self, message: str):
-        InfoBar.error(
-            title=self.tr("播放失败"),
-            content=message or self.tr("无法播放当前歌曲"),
-            orient=Qt.Horizontal,
-            isClosable=True,
-            position=InfoBarPosition.TOP,
-            duration=3000,
-            parent=self,
-        )
 
     def showDownloadStarted(self, song_name: str, task_info=None):
         if getattr(task_info, "is_batch", False):
@@ -342,7 +264,6 @@ class MainWindow(FramelessWindow):
             stream.setCodec('UTF-8')
             self.setStyleSheet(stream.readAll())
             qss_file.close()
-        self.playerBar.animate_color(self.playerBar.default_color())
 
     def resizeEvent(self, e):
         super().resizeEvent(e)

@@ -8,6 +8,6 @@ pycryptodome
 nuitka
 ordered-set
 requests
+curl_cffi==0.16.3
 zstandard
 ruff
-colorthief==0.2.1

@@ -1,4 +1,7 @@
 node_modules
+.cache/
+.venv/
+.env*
 .next
 .git
 npm-debug.log

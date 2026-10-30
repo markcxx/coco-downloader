@@ -22,6 +22,7 @@ class PlayInfo:
     bitrate: str | None = None
     cover: str | None = None
     headers: dict[str, str] = field(default_factory=dict)
+    delivery: str = "audio"
 
 
 @dataclass(frozen=True)
@@ -39,3 +40,4 @@ class LyricData:
     tlyric: str | None = None
     yrc: str | None = None
     romalrc: str | None = None
+    source: str | None = None

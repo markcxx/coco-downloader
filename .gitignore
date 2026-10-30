@@ -41,6 +41,9 @@ yarn-error.log*
 next-env.d.ts
 
 # Python
+.venv/
+/.cache/
+/.python/
 __pycache__/
 *.py[cod]
 *$py.class

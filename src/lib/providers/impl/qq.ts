@@ -1,5 +1,9 @@
 import axios from 'axios';
 import { MusicItem, MusicProvider, PlayInfo } from '@/types/music';
+import { validateAudioLink } from '@/lib/providers/audio-link';
+
+const SEARCH_URL = 'https://u.y.qq.com/cgi-bin/musicu.fcg';
+const SEARCH_REQUEST_KEY = 'music.search.SearchCgiService.DoSearchForQQMusicMobile';
 
 const SEARCH_HEADERS = {
   'Content-Type': 'application/json',
@@ -22,16 +26,18 @@ type QQOfficialSearchSong = {
   mid?: string;
   name?: string;
   singer?: Array<{ name?: string }>;
-  album?: { name?: string; mid?: string };
+  album?: { name?: string; title?: string; mid?: string };
   interval?: number;
 };
 
 type QQOfficialSearchResponse = {
   code?: number;
   message?: string;
-  req_1?: {
+  'music.search.SearchCgiService.DoSearchForQQMusicMobile'?: {
+    code?: number;
     data?: {
       body?: {
+        item_song?: QQOfficialSearchSong[];
         song?: {
           list?: QQOfficialSearchSong[];
         };
@@ -41,7 +47,8 @@ type QQOfficialSearchResponse = {
 };
 
 type QQExtra = {
-  selectedParser?: 'xcvts' | 'cyapi';
+  usage?: string;
+  selectedParser?: string;
   selectedFormat?: string;
   cover?: string;
 };
@@ -54,20 +61,6 @@ export type QQLyricData = {
 };
 
 const QUALITY_PRIORITY = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0];
-const XCVTS_QUALITIES = ['臻品母带', '臻品全景声', '臻品2.0', 'SQ无损', 'HQ高品质', '中品质', '普通', '低品质', '试听'];
-const XCVTS_KEYS = [
-  'Nzg5OTMzNDRiOWJmMTEwNTY1NTU5OTAwOWNkYmEzZDI=',
-  'Y2U3NzhlYjBkMTg1OGVkZmI0YjIwNzFhMTE1ZjFlZGY=',
-];
-const CYAPI_KEYS = [
-  '1ffdf5733f5d538760e63d7e46ba17438d9f7b9dfc18c51be1109386fd74c3a1',
-  '2baf39266d8ef0580aba937245d5bb569fe376f230ff508f1faa0922dc320fe4',
-];
-const QQ_DOWNLOAD_OPTIONS = [
-  { value: 'xcvts', label: 'XCVTS 高品质', quality: 'flac', format: 'flac' },
-  { value: 'cyapi', label: 'CYAPI 备用', quality: 'mp3', format: 'mp3' },
-];
-
 function extractExt(url: string) {
   const clean = url.split('?')[0];
   const parts = clean.split('.');
@@ -89,10 +82,6 @@ function formatDuration(seconds?: number) {
 
 function decodeBase64(value: string) {
   return Buffer.from(value, 'base64').toString('utf8');
-}
-
-function pickRandom<T>(items: T[]) {
-  return items[Math.floor(Math.random() * items.length)];
 }
 
 function parseLyricLines(lyric: string) {
@@ -124,14 +113,14 @@ export class QQProvider implements MusicProvider {
     try {
       const normalizedLimit = normalizeLimit(limit);
       const pageNum = Math.floor(normalizeOffset(offset) / normalizedLimit) + 1;
-      const { data } = await axios.post<QQOfficialSearchResponse>('http://u6.y.qq.com/cgi-bin/musicu.fcg', {
+      const { data } = await axios.post<QQOfficialSearchResponse>(SEARCH_URL, {
         comm: {
           ct: '19',
           cv: '1859',
           uin: '0',
         },
-        req_1: {
-          method: 'DoSearchForQQMusicDesktop',
+        [SEARCH_REQUEST_KEY]: {
+          method: 'DoSearchForQQMusicMobile',
           module: 'music.search.SearchCgiService',
           param: {
             grp: 1,
@@ -148,7 +137,12 @@ export class QQProvider implements MusicProvider {
       if (data?.code !== 0) {
         throw new Error(data?.message || 'QQ official search failed');
       }
-      const list = data?.req_1?.data?.body?.song?.list || [];
+      const searchResult = data?.[SEARCH_REQUEST_KEY];
+      if (searchResult?.code !== 0) {
+        throw new Error('QQ mobile search request failed');
+      }
+      const body = searchResult?.data?.body;
+      const list = body?.item_song || body?.song?.list || [];
       return list
         .map((item) => {
           const albumMid = item.album?.mid || '';
@@ -157,51 +151,30 @@ export class QQProvider implements MusicProvider {
             id: item.mid || '',
             title: item.name || '未知歌曲',
             artist: (item.singer || []).map((singer) => singer.name).filter(Boolean).join(', ') || '未知歌手',
-            album: item.album?.name || undefined,
+            album: item.album?.name || item.album?.title || undefined,
             cover,
             duration: formatDuration(item.interval),
             provider: this.name,
             extra: {
               cover,
-              selectedParser: 'xcvts',
+              selectedParser: 'vkeys',
               selectedFormat: 'flac',
-              qualityOptions: QQ_DOWNLOAD_OPTIONS,
             },
           };
         })
         .filter((item) => item.id);
     } catch (error) {
       console.error('QQ search error:', error);
-      return [];
+      throw error;
     }
   }
 
   async getPlayInfo(id: string, extra?: unknown): Promise<PlayInfo> {
     const payload = extra as QQExtra | undefined;
-    const selectedParser = payload?.selectedParser;
-    try {
-      if (selectedParser === 'xcvts') {
-        return await this.getByXcvts(id);
-      }
-      if (selectedParser === 'cyapi') {
-        return await this.getByCyapi(id);
-      }
-
-      try {
-        return await this.getByXcvts(id);
-      } catch (error) {
-        console.warn('QQ xcvts fallback:', error);
-      }
-      try {
-        return await this.getByCyapi(id);
-      } catch (error) {
-        console.warn('QQ cyapi fallback:', error);
-      }
-      return await this.getByVkeys(id);
-    } catch (error) {
-      console.error('QQ getPlayInfo error:', error);
-      throw error;
+    if (payload?.selectedParser && payload.selectedParser !== 'vkeys') {
+      throw new Error('该 QQ 音乐解析线路已下架，请重新搜索并选择可用渠道');
     }
+    return this.getByVkeys(id, payload?.usage === 'playback' ? [8, 6] : QUALITY_PRIORITY);
   }
 
   async getLyric(id: string): Promise<QQLyricData> {
@@ -232,71 +205,32 @@ export class QQProvider implements MusicProvider {
     };
   }
 
-  private async getByVkeys(id: string): Promise<PlayInfo> {
-    for (const quality of QUALITY_PRIORITY) {
-      const { data } = await axios.get<VKeysGetUrlResponse>('https://api.vkeys.cn/v2/music/tencent/geturl', {
+  private async getByVkeys(id: string, qualities = QUALITY_PRIORITY): Promise<PlayInfo> {
+    for (const quality of qualities) {
+      const { data } = await axios.get<VKeysGetUrlResponse>('https://api.vkeys.cn/music/tencent/song/link', {
         headers: SEARCH_HEADERS,
         params: { mid: id, quality },
         timeout: 15000,
       });
-      if (data?.code !== 200) {
+      if (data?.code !== 0 && data?.code !== 200) {
         continue;
       }
       const url = data?.data?.url;
       if (typeof url === 'string' && url.startsWith('http')) {
-        return {
-          url,
-          type: extractExt(url),
-          bitrate: data?.data?.kbps || data?.data?.quality,
-          cover: data?.data?.cover || undefined,
-        };
+        try {
+          const verified = await validateAudioLink(url, { headers: SEARCH_HEADERS });
+          return {
+            url: verified.url,
+            type: extractExt(verified.url),
+            bitrate: data?.data?.kbps || data?.data?.quality,
+            cover: data?.data?.cover || undefined,
+          };
+        } catch {
+          continue;
+        }
       }
     }
     throw new Error('Failed to get play url');
   }
 
-  private async getByXcvts(id: string): Promise<PlayInfo> {
-    const apiKey = decodeBase64(pickRandom(XCVTS_KEYS));
-    for (const quality of XCVTS_QUALITIES) {
-      const { data } = await axios.get('https://api.xcvts.cn/api/music/qq', {
-        headers: { 'User-Agent': SEARCH_HEADERS['User-Agent'] },
-        params: { apiKey, mid: id, type: quality },
-        timeout: 15000,
-      });
-      const payload = data?.data || {};
-      const url = String(payload.music || '').trim();
-      if (url.startsWith('http')) {
-        return {
-          url,
-          type: extractExt(url),
-          bitrate: quality,
-          cover: typeof payload.cover === 'string' ? payload.cover : undefined,
-        };
-      }
-    }
-    throw new Error('Failed to get xcvts url');
-  }
-
-  private async getByCyapi(id: string): Promise<PlayInfo> {
-    const { data } = await axios.get('https://cyapi.top/API/qq_music.php', {
-      headers: { 'User-Agent': SEARCH_HEADERS['User-Agent'] },
-      params: {
-        apikey: pickRandom(CYAPI_KEYS),
-        type: 'json',
-        mid: id,
-        quality: 'lossless',
-      },
-      timeout: 15000,
-    });
-    const url = String(data?.url || '').trim();
-    if (!url.startsWith('http')) {
-      throw new Error('Failed to get cyapi url');
-    }
-    return {
-      url,
-      type: extractExt(url),
-      bitrate: 'lossless',
-      cover: data?.cover?.large || data?.cover || undefined,
-    };
-  }
 }

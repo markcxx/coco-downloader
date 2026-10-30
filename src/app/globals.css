@@ -72,3 +72,17 @@ body {
 .animate-spin-slow {
   animation: spin 8s linear infinite;
 }
+
+/* Hide only the channel menu scrollbar while retaining native scrolling. */
+.provider-menu-scroll {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none;
+}
+
+.provider-menu-scroll::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.coco-navbar { display:flex; justify-content:space-between; align-items:center; gap:16px; min-height:72px; }

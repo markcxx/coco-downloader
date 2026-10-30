@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Download, CheckCircle2, AlertCircle, Trash2, Music, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Download, CheckCircle2, AlertCircle, Trash2, Music, Loader2, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { DownloadTask } from '@/types/download';
+import { isActiveDownload, isDownloadHistory } from '@/lib/download-history';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import { BrowserDownloadNotice } from '@/components/BrowserDownloadNotice';
 
 interface DownloadDrawerProps {
   isOpen: boolean;
   onOpen: () => void;
   onClose: () => void;
   tasks: DownloadTask[];
+  onBrowserHandoff: (taskId: string) => void;
   onRemoveTask: (taskId: string) => void;
   onClearCompleted: () => void;
 }
@@ -19,6 +22,7 @@ export function DownloadDrawer({
   onOpen,
   onClose,
   tasks,
+  onBrowserHandoff,
   onRemoveTask,
   onClearCompleted
 }: DownloadDrawerProps) {
@@ -31,11 +35,12 @@ export function DownloadDrawer({
   });
 
   const downloadingCount = tasks.filter(t => t.status === 'downloading').length;
-  const completedCount = tasks.filter(t => t.status === 'completed' || t.status === 'error').length;
+  const activeCount = tasks.filter(isActiveDownload).length;
+  const completedCount = tasks.filter(isDownloadHistory).length;
 
   const filteredTasks = activeTab === 'downloading'
-    ? sortedTasks.filter(t => t.status === 'downloading' || t.status === 'pending')
-    : sortedTasks.filter(t => t.status === 'completed' || t.status === 'error');
+    ? sortedTasks.filter(isActiveDownload)
+    : sortedTasks.filter(isDownloadHistory);
 
   return (
     <>
@@ -97,6 +102,7 @@ export function DownloadDrawer({
             <div className="mb-1 flex rounded-xl bg-[#e5e2e1]/70 p-1 dark:bg-white/10">
               <button
                 onClick={() => setActiveTab('downloading')}
+                aria-pressed={activeTab === 'downloading'}
                 className={cn(
                   "flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-colors",
                   activeTab === 'downloading'
@@ -105,10 +111,11 @@ export function DownloadDrawer({
                 )}
               >
                 <Download className="h-4 w-4" />
-                进行中 ({downloadingCount})
+                进行中 ({activeCount})
               </button>
               <button
                 onClick={() => setActiveTab('completed')}
+                aria-pressed={activeTab === 'completed'}
                 className={cn(
                   "flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-colors",
                   activeTab === 'completed'
@@ -117,18 +124,18 @@ export function DownloadDrawer({
                 )}
               >
                 <CheckCircle2 className="h-4 w-4" />
-                已完成 ({completedCount})
+                历史记录 ({completedCount})
               </button>
             </div>
 
-            {tasks.some(t => t.status === 'completed' || t.status === 'error') && (
+            {tasks.some(isDownloadHistory) && (
               <div className="flex justify-end">
                 <button
                   onClick={onClearCompleted}
                   className="flex cursor-pointer items-center gap-1 text-xs font-medium text-[#005faa] transition-colors hover:text-[#0078d4] dark:text-[#a3c9ff]"
                 >
                   <Trash2 className="h-4 w-4" />
-                  清空已完成/失败
+                  清空历史记录
                 </button>
               </div>
             )}
@@ -143,7 +150,7 @@ export function DownloadDrawer({
                       <CheckCircle2 className="h-8 w-8 text-[#717783] dark:text-[#c6c6c7]" />
                     )}
                   </div>
-                  <p>{activeTab === 'downloading' ? '还没有下载任务' : '还没有已完成的下载'}</p>
+                  <p>{activeTab === 'downloading' ? '还没有下载任务' : '还没有下载记录'}</p>
                 </div>
               ) : (
                 filteredTasks.map((task) => (
@@ -167,6 +174,7 @@ export function DownloadDrawer({
                           )}
                           <div className="absolute inset-0 flex items-center justify-center bg-black/25">
                             {task.status === 'completed' && <CheckCircle2 className="h-5 w-5 text-[#a3c9ff]" />}
+                            {(task.status === 'browser-ready' || task.status === 'handed-off') && <ExternalLink className="h-5 w-5 text-white" />}
                             {task.status === 'error' && <AlertCircle className="h-5 w-5 text-red-300" />}
                             {task.status === 'downloading' && <Loader2 className="h-5 w-5 animate-spin text-white" />}
                           </div>
@@ -178,7 +186,7 @@ export function DownloadDrawer({
                           <p className="mt-1 flex justify-between text-xs font-medium leading-4 text-[#404752] dark:text-[#c6c6c7]">
                             <span>{task.fileName}</span>
                             <span className="ml-2 shrink-0 text-[#005faa] dark:text-[#a3c9ff]">
-                              {task.status === 'downloading' ? `${Math.round(task.progress)}%` : task.status === 'pending' ? '等待中' : ''}
+                              {task.status === 'downloading' ? (task.totalBytes ? `${Math.round(task.progress)}%` : task.receivedBytes ? `${(task.receivedBytes / 1048576).toFixed(1)} MB` : '连接中') : task.status === 'pending' ? '等待中' : ''}
                             </span>
                           </p>
                         </div>
@@ -199,19 +207,42 @@ export function DownloadDrawer({
                       />
                     </div>
 
+                    {task.notice && (
+                      <p className="mt-2 text-xs leading-5 text-[#404752] dark:text-[#c6c6c7]">{task.notice}</p>
+                    )}
+                    {(task.status === 'browser-ready' || task.status === 'handed-off') && task.sourceUrl && (
+                      <div className="mt-2">
+                        <a
+                          href={task.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => onBrowserHandoff(task.id)}
+                          className="inline-flex items-center gap-1 rounded-full bg-[#005faa] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#0078d4]"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          {task.delivery === 'source-page' ? '前往源站下载' : task.status === 'handed-off' ? '再次打开音频链接' : '交给浏览器下载'}
+                        </a>
+                        <p className="mt-1 text-xs leading-5 text-[#404752] dark:text-[#c6c6c7]">{task.delivery === 'source-page' ? '请在源站选择网盘下载入口，按提示保存；网页无法验证后续保存结果。' : '若打开播放页面，可使用浏览器菜单另存为；是否能保存取决于源站与浏览器。'}</p>
+                        {task.delivery !== 'source-page' && <BrowserDownloadNotice className="mt-2" />}
+                      </div>
+                    )}
+
                     {task.error && (
-                      <p className="mt-2 truncate text-[10px] text-red-500 dark:text-red-300">{task.error}</p>
+                      <p className="mt-2 break-words text-xs text-red-500 dark:text-red-300">{task.error}</p>
                     )}
 
                     <div className="mt-3 flex items-center justify-between">
                       <span className={cn(
                         "rounded px-2 py-0.5 text-[10px] font-bold tracking-wide",
                         task.status === 'completed' && "bg-[#005faa]/10 text-[#005faa] dark:text-[#a3c9ff]",
+                        (task.status === 'browser-ready' || task.status === 'handed-off') && "bg-[#005faa]/10 text-[#005faa] dark:text-[#a3c9ff]",
                         task.status === 'error' && "bg-red-500/10 text-red-600 dark:text-red-300",
                         task.status === 'downloading' && "bg-[#005faa]/10 text-[#005faa] dark:text-[#a3c9ff]",
                         task.status === 'pending' && "bg-[#5c5e5e]/10 text-[#5c5e5e] dark:text-[#c6c6c7]"
                       )}>
                         {task.status === 'completed' && '已完成'}
+                        {task.status === 'browser-ready' && '需要浏览器处理'}
+                        {task.status === 'handed-off' && '已交给浏览器处理'}
                         {task.status === 'error' && '失败'}
                         {task.status === 'downloading' && '下载中'}
                         {task.status === 'pending' && '排队中'}

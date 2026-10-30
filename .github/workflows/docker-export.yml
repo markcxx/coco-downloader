@@ -32,6 +32,7 @@ jobs:
     - name: Build Docker image
       uses: docker/build-push-action@v5
       with:
+        pull: true
         context: .
         file: ./Dockerfile
         platforms: linux/amd64

@@ -1,10 +1,10 @@
 import axios from 'axios';
 import crypto from 'crypto';
 import { MusicItem, MusicProvider, PlayInfo } from '@/types/music';
+import { NETEASE_QUALITY_OPTIONS } from '@/lib/music-quality';
 
 const API_DOMAIN = 'https://interface.music.163.com';
 const LYRIC_API_URL = 'https://interface3.music.163.com/eapi/song/lyric/v1';
-const CENGUIGUI_PLAY_API_URL = 'https://api-v2.cenguigui.cn/api/netease/music_v1.php';
 const METING_API_URL = 'https://api.qijieya.cn/meting/';
 const REQUEST_TIMEOUT = 15000;
 const EAPI_KEY = Buffer.from('e82ckenh8dichen8', 'utf8');
@@ -13,29 +13,13 @@ const VALID_LEVELS = new Set([
   'standard',
   'exhigh',
   'lossless',
-  'hires',
-  'jyeffect',
-  'sky',
-  'jymaster',
 ]);
 const METING_BR_BY_LEVEL: Record<string, string> = {
   standard: '128',
   exhigh: '320',
   lossless: '2000',
-  hires: '2000',
-  jyeffect: '2000',
-  sky: '2000',
-  jymaster: '2000',
 };
-const QUALITY_OPTIONS = [
-  { value: 'standard', label: '标准音质', quality: '128', format: 'mp3' },
-  { value: 'exhigh', label: '极高音质', quality: '320', format: 'mp3' },
-  { value: 'lossless', label: '无损音质', quality: 'lossless', format: 'flac/mp3' },
-  { value: 'hires', label: 'Hi-Res', quality: 'hires', format: 'flac' },
-  { value: 'jyeffect', label: '高清环绕声', quality: 'jyeffect', format: 'flac/mp3' },
-  { value: 'sky', label: '沉浸环绕声', quality: 'sky', format: 'flac/mp3' },
-  { value: 'jymaster', label: '超清母带', quality: 'jymaster', format: 'flac/mp3' },
-];
+const QUALITY_OPTIONS = NETEASE_QUALITY_OPTIONS;
 const DEFAULT_UA =
   'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Safari/537.36 Chrome/91.0.4472.164 ' +
@@ -186,7 +170,7 @@ export class NeteaseOfficialProvider implements MusicProvider {
       return songs.map((song) => this.mapItem(song)).filter((item): item is MusicItem => Boolean(item));
     } catch (error) {
       console.error('Netease official search error:', error);
-      return [];
+      throw error;
     }
   }
 
@@ -194,26 +178,8 @@ export class NeteaseOfficialProvider implements MusicProvider {
     const payload = extra as { cover?: string; level?: string; selectedLevel?: string } | undefined;
     const level = normalizeLevel(payload?.level || payload?.selectedLevel);
 
-    // Try Meting API first since cenguigui is currently unavailable
-    try {
-      const info = await this.getByMeting(id, level);
-      return {
-        url: info.url,
-        type: extractExt(info.url),
-        bitrate: info.bitrate,
-        cover: payload?.cover,
-      };
-    } catch (error) {
-      console.error('Netease meting play url error:', error);
-      // Fallback to cenguigui (though it's currently down)
-      const info = await this.getByCenguigui(id, level);
-      return {
-        url: info.url,
-        type: extractExt(info.url),
-        bitrate: info.bitrate,
-        cover: info.cover || payload?.cover,
-      };
-    }
+    const info = await this.getByMeting(id, level);
+    return { url: info.url, type: extractExt(info.url), bitrate: info.bitrate, cover: payload?.cover };
   }
 
   async getLyric(id: string): Promise<NeteaseLyricData> {
@@ -294,29 +260,6 @@ export class NeteaseOfficialProvider implements MusicProvider {
 
   private generateDeviceId() {
     return crypto.randomBytes(16).toString('hex');
-  }
-
-  private async getByCenguigui(id: string, level: string) {
-    const { data } = await axios.get(CENGUIGUI_PLAY_API_URL, {
-      params: { id, type: 'json', level },
-      timeout: REQUEST_TIMEOUT,
-    });
-
-    if (!data || data.code !== 200 || typeof data.data !== 'object') {
-      throw new Error('Cenguigui parse failed');
-    }
-
-    const payload = data.data as { url?: string; pic?: string; format?: string };
-    const url = String(payload.url || '').trim();
-    if (!isHttpUrl(url)) {
-      throw new Error('Invalid cenguigui url');
-    }
-
-    return {
-      url,
-      cover: payload.pic ? String(payload.pic) : undefined,
-      bitrate: payload.format ? String(payload.format) : level,
-    };
   }
 
   private async getByMeting(id: string, level: string) {
