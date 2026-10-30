@@ -1,8 +1,8 @@
 # coding: utf-8
 from typing import Any
 
-from PyQt5.QtCore import QThread, Qt, QSize, pyqtSignal
-from PyQt5.QtGui import QColor, QFont
+from PyQt5.QtCore import QThread, Qt, QSize, QUrl, pyqtSignal
+from PyQt5.QtGui import QColor, QFont, QDesktopServices
 from PyQt5.QtWidgets import QLabel, QWidget, QVBoxLayout
 
 from PyQt5.QtWidgets import QGraphicsDropShadowEffect
@@ -11,7 +11,7 @@ from qfluentwidgets import Action, CommandBarView, FluentIcon, InfoBar, InfoBarP
 
 from ..common.style_sheet import StyleSheet
 from ..common.signal_bus import signalBus
-from ..components import DownloadOptionDialog, NeteaseQualityDialog, PlaceholderWidget, SearchCard, SongInfo, SongListWidget
+from ..components import DownloadOptionDialog, PlaceholderWidget, SearchCard, SongInfo, SongListWidget
 from ..models.music import MusicItem
 from ..services.errors import (
     NETWORK_ERROR_HTTP_STATUS,
@@ -20,11 +20,12 @@ from ..services.errors import (
     ProviderNetworkError,
 )
 from ..services.music_search_service import search_music
+from ..services.thread_lifecycle import retain_thread
+from ..services.providers import PROVIDER_DISPLAY_NAMES
+from ..services.channels import get_channel, supports_paging
+from ..services.music_service import resolve_source_page
 
 PAGE_SIZE = 20
-PAGED_PLATFORMS = {"cenguigui", "XCVTS", "海棠", "netease", "qq-official", "kugou"}
-DOWNLOAD_ONLY_PLATFORMS = {"QQMP3", "力音", "爱听", "qqmp3", "livepoo", "aiting"}
-NETEASE_OFFICIAL_PLATFORMS = {"cenguigui", "netease"}
 
 
 class MusicSearchThread(QThread):
@@ -71,6 +72,21 @@ class MusicSearchThread(QThread):
                 str(error),
                 "",
             )
+
+
+class SourcePageResolveThread(QThread):
+    resolved = pyqtSignal(str)
+    failed = pyqtSignal(str)
+
+    def __init__(self, item: MusicItem, parent=None):
+        super().__init__(parent)
+        self.item = item
+
+    def run(self):
+        try:
+            self.resolved.emit(resolve_source_page(self.item))
+        except Exception as error:
+            self.failed.emit(str(error))
 
 
 class SongSelectionCommandBarView(CommandBarView):
@@ -122,7 +138,6 @@ class HomeInterface(ScrollArea):
 
         self._init_widget()
         self._connect_signals()
-        self._sync_preview_hint(self.searchCard.platformComboBox.currentText())
 
     def _init_widget(self):
         self.resize(1000, 800)
@@ -153,11 +168,9 @@ class HomeInterface(ScrollArea):
 
     def _connect_signals(self):
         self.searchCard.searchRequested.connect(self._on_search)
-        self.searchCard.platformChanged.connect(self._sync_preview_hint)
         self.selectionCommandBar.downloadAction.triggered.connect(self._download_selected_songs)
         self.selectionCommandBar.selectAllAction.triggered.connect(self._select_all_songs)
         self.selectionCommandBar.cancelAction.triggered.connect(self._clear_song_selection)
-        signalBus.playbackTrackChanged.connect(self._on_playback_track_changed)
 
     def _on_search(self, keyword: str, platform: str):
         """Handle search request"""
@@ -168,7 +181,6 @@ class HomeInterface(ScrollArea):
         self.currentOffset = 0
         self.currentItems = []
         self.isLoadingMore = False
-        self._sync_preview_hint(platform)
         self.placeholderWidget.set_content_visible(False)
         self.placeholderWidget.show()
         self.resultTitleLabel.hide()
@@ -179,7 +191,7 @@ class HomeInterface(ScrollArea):
         thread = MusicSearchThread(keyword, platform, request_id, PAGE_SIZE, 0, self)
         thread.searchFinished.connect(self._on_search_finished)
         thread.searchFailed.connect(self._on_search_failed)
-        thread.finished.connect(thread.deleteLater)
+        retain_thread(thread)
         self.searchThread = thread
         thread.start()
 
@@ -203,10 +215,12 @@ class HomeInterface(ScrollArea):
             return
 
         if not items:
+            InfoBar.warning(title=self.tr("暂无结果"), content=self.tr("未找到歌曲，或第三方渠道暂不可用，请更换关键词或渠道。"),
+                            duration=5000, parent=self.window(), position=InfoBarPosition.TOP)
             self._clear_song_list()
             self._show_placeholder(
                 self.tr("没有找到结果"),
-                self.tr("平台 {platform} 没有返回可展示的歌曲").format(platform=platform),
+                self.tr("平台 {platform} 没有返回可展示的歌曲").format(platform=self._platform_name(platform)),
             )
             return
 
@@ -248,7 +262,7 @@ class HomeInterface(ScrollArea):
         self._show_placeholder(
             self.tr("搜索失败"),
             self.tr("{platform} 请求失败：{message}").format(
-                platform=platform,
+                platform=self._platform_name(platform),
                 message=message or self.tr("未知错误"),
             ),
         )
@@ -258,7 +272,6 @@ class HomeInterface(ScrollArea):
         if self.songListWidget is None:
             self.songListWidget = SongListWidget(songs, self.scrollWidget)
             self.songListWidget.loadMoreRequested.connect(self._on_load_more)
-            self.songListWidget.songPlayRequested.connect(self._on_song_play_requested)
             self.songListWidget.songDownloadRequested.connect(self._on_song_download_requested)
             self.songListWidget.selectionCountChanged.connect(self._on_song_selection_count_changed)
             self.vBoxLayout.addWidget(self.songListWidget, 1)
@@ -285,7 +298,6 @@ class HomeInterface(ScrollArea):
             singer=item.artist,
             album=item.album or self.tr("未知专辑"),
             duration=self._format_duration(item.duration),
-            can_preview=not self._is_download_only_platform(self.currentPlatform),
         )
 
     def _format_duration(self, duration: str | None) -> str:
@@ -318,7 +330,7 @@ class HomeInterface(ScrollArea):
         )
         thread.searchFinished.connect(self._on_search_finished)
         thread.searchFailed.connect(self._on_search_failed)
-        thread.finished.connect(thread.deleteLater)
+        retain_thread(thread)
         self.searchThread = thread
         thread.start()
 
@@ -345,12 +357,11 @@ class HomeInterface(ScrollArea):
             self.songListWidget.set_load_more_visible(visible)
 
     def _supports_paging(self, platform: str) -> bool:
-        return platform in PAGED_PLATFORMS
+        return supports_paging(platform)
 
-    def _on_song_play_requested(self, index: int) -> None:
-        if self._is_download_only_platform(self.currentPlatform):
-            return
-        signalBus.playPlaylistRequested.emit(self.currentItems, index)
+    def _platform_name(self, platform: str) -> str:
+        return next((name for name, key in PROVIDER_DISPLAY_NAMES.items() if key == platform), platform)
+
 
     def _on_song_download_requested(self, index: int) -> None:
         if not 0 <= index < len(self.currentItems):
@@ -360,12 +371,13 @@ class HomeInterface(ScrollArea):
         self._request_download(item)
 
     def _request_download(self, item: MusicItem) -> None:
-        if self._is_netease_official(item.provider):
-            dialog = NeteaseQualityDialog(self.window())
-            if dialog.exec():
-                signalBus.downloadRequested.emit(item, {"level": dialog.selected_level})
+        if get_channel(item.provider).delivery == "source-page":
+            thread = SourcePageResolveThread(item, self)
+            retain_thread(thread)
+            thread.resolved.connect(self._open_source_page)
+            thread.failed.connect(lambda message: self._show_search_error_info_bar(message, ""))
+            thread.start()
             return
-
         option_overrides = self._select_download_option(item)
         if option_overrides is None:
             return
@@ -375,6 +387,12 @@ class HomeInterface(ScrollArea):
 
         signalBus.downloadRequested.emit(item, {})
 
+    def _open_source_page(self, url: str) -> None:
+        QDesktopServices.openUrl(QUrl(url))
+        InfoBar.info(title=self.tr("前往源站下载"),
+                     content=self.tr("请在源站选择保存入口，客户端无法跟踪保存结果。"),
+                     parent=self, position=InfoBarPosition.TOP, duration=6000)
+
     def _download_selected_songs(self) -> None:
         if self.songListWidget is None:
             return
@@ -382,18 +400,24 @@ class HomeInterface(ScrollArea):
         if not indexes:
             return
 
-        netease_level = None
-        if any(self._is_netease_official(self.currentItems[index].provider) for index in indexes):
-            dialog = NeteaseQualityDialog(self.window())
-            if not dialog.exec():
+        if any(not get_channel(self.currentItems[index].provider).batch_download for index in indexes):
+            InfoBar.warning(title=self.tr("此渠道不支持批量下载"),
+                            content=self.tr("力音需前往源站逐首保存，请点击歌曲的下载按钮。"),
+                            parent=self, position=InfoBarPosition.TOP, duration=6000)
+            return
+
+        gd_overrides = {}
+        gd_item = next((self.currentItems[index] for index in indexes if self.currentItems[index].provider in {"netease", "gdstudio-netease"}), None)
+        if gd_item:
+            gd_overrides = self._select_download_option(gd_item)
+            if gd_overrides is None:
                 return
-            netease_level = dialog.selected_level
 
         for index in indexes:
             item = self.currentItems[index]
             overrides = {"_batch": True}
-            if netease_level and self._is_netease_official(item.provider):
-                overrides["level"] = netease_level
+            if item.provider in {"netease", "gdstudio-netease"}:
+                overrides.update(gd_overrides)
             signalBus.downloadRequested.emit(item, overrides)
         self.songListWidget.clear_selection()
 
@@ -411,26 +435,9 @@ class HomeInterface(ScrollArea):
             self.selectionCommandBar.raise_()
             self._move_selection_command_bar()
 
-    def _on_playback_track_changed(self, item: object, index: int) -> None:
-        if self.songListWidget is None:
-            return
-        if not isinstance(item, MusicItem):
-            return
-        if index >= len(self.currentItems):
-            return
-        current_item = self.currentItems[index]
-        if current_item.id != item.id or current_item.provider != item.provider:
-            return
-        self.songListWidget.set_playing_index(index)
 
-    def _sync_preview_hint(self, platform: str) -> None:
-        self.searchCard.set_preview_hint_visible(self._is_download_only_platform(platform))
 
-    def _is_download_only_platform(self, platform: str) -> bool:
-        return platform in DOWNLOAD_ONLY_PLATFORMS
 
-    def _is_netease_official(self, provider: str) -> bool:
-        return provider in NETEASE_OFFICIAL_PLATFORMS
 
     def _select_download_option(self, item: MusicItem) -> dict[str, Any] | None:
         options = item.extra.get("qualityOptions")
@@ -441,9 +448,10 @@ class HomeInterface(ScrollArea):
         if not valid_options:
             return {}
 
+        is_gd = item.provider in {"netease", "gdstudio-netease"}
         dialog = DownloadOptionDialog(
-            self.tr("选择下载线路"),
-            self.tr("{provider} 支持多个解析线路，请选择本次下载使用的线路。").format(provider=item.provider),
+            self.tr("选择下载音质") if is_gd else self.tr("选择下载线路"),
+            self.tr("此渠道支持多种音质，实际音质以返回文件为准。") if is_gd else self.tr("{provider} 支持多个解析线路，请选择本次下载使用的线路。").format(provider=item.provider),
             valid_options,
             self._default_download_option_value(item),
             self.window(),
@@ -455,6 +463,8 @@ class HomeInterface(ScrollArea):
         value = selected.get("value")
         if not isinstance(value, str) or not value:
             return {}
+        if is_gd:
+            return {"level": value, "selectedLevel": value}
         return {
             "selectedParser": selected.get("parser") or value,
             "selectedLevel": selected.get("level"),

@@ -1,0 +1,6 @@
+.dialog { position:fixed; inset:0; margin:auto; width:min(384px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); padding:24px; overflow-y:auto; background:#fff; color:#1b1b1c; border:1px solid #e2e8f0; border-radius:16px; box-shadow:0 24px 70px #0003; opacity:0; transform:translateY(6px); transition:opacity 160ms ease,transform 160ms ease,display 160ms allow-discrete,overlay 160ms allow-discrete; }
+.dialog[open] { opacity:1; transform:none; }
+.dialog::backdrop { background:rgb(0 0 0 / 40%); transition:background-color 160ms ease,display 160ms allow-discrete,overlay 160ms allow-discrete; }
+@starting-style { .dialog[open] { opacity:0; transform:translateY(6px); }.dialog[open]::backdrop { background:rgb(0 0 0 / 0%); } }
+:global(.dark) .dialog { background:#0f172a; border-color:#1e293b; color:#f1f5f9; }
+@media(prefers-reduced-motion:reduce) { .dialog,.dialog::backdrop { transition:none; } }

@@ -1,0 +1,842 @@
+{
+  "checked_at": "2026-10-11T19:45:25+08:00",
+  "scope": "Desktop; two queries, first two results each; audio prefix inspection; one muted Qt playback per provider with playable samples. Not a guarantee for all songs or future availability.",
+  "summary": {
+    "verified_samples": [
+      "netease",
+      "qq",
+      "kugou",
+      "gequhai",
+      "bodian",
+      "qqmp3",
+      "jianbin-netease",
+      "jianbin-qq",
+      "jianbin-kugou",
+      "jianbin-kuwo"
+    ],
+    "partially_available": [
+      "migu"
+    ],
+    "not_restored": [
+      "livepoo"
+    ]
+  },
+  "before_repairs": [
+    {
+      "provider": "bodian",
+      "query": "晴天",
+      "search_count": 10,
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "error": "ProviderNetworkError: 安全连接失败，请稍后重试"
+        },
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "error": "ProviderNetworkError: 安全连接失败，请稍后重试"
+        }
+      ]
+    },
+    {
+      "provider": "netease",
+      "query": "晴天",
+      "search_count": 5,
+      "samples": [
+        {
+          "title": "晴天(深情版)",
+          "artist": "Lucky小爱",
+          "resolved_host": "m801.music.126.net",
+          "http_status": 206,
+          "content_type": "audio/mpeg; charset=UTF-8",
+          "audio_verified": true,
+          "prefix_hex": "49443304000000000023545353450000"
+        },
+        {
+          "title": "晴天 (原唱 周杰伦)",
+          "artist": "RyaVocal",
+          "resolved_host": "m801.music.126.net",
+          "http_status": 206,
+          "content_type": "audio/mpeg; charset=UTF-8",
+          "audio_verified": true,
+          "prefix_hex": "49443304000000000023545353450000"
+        }
+      ]
+    },
+    {
+      "provider": "gequhai",
+      "query": "晴天",
+      "search_count": 15,
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolved_host": "car-er.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000037544954320000"
+        },
+        {
+          "title": "像晴天像雨天",
+          "artist": "汪苏泷",
+          "resolved_host": "car-er.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "4944330300000000005f544954320000"
+        }
+      ]
+    },
+    {
+      "provider": "qq",
+      "query": "晴天",
+      "search_count": 5,
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolved_host": "ws.stream.qqmusic.qq.com",
+          "http_status": 206,
+          "content_type": "audio/x-ogg",
+          "audio_verified": true,
+          "prefix_hex": "664c6143000000221000100000028a00"
+        },
+        {
+          "title": "晴天",
+          "artist": "Lucky小爱",
+          "resolved_host": "ws.stream.qqmusic.qq.com",
+          "http_status": 206,
+          "content_type": "audio/x-ogg",
+          "audio_verified": true,
+          "prefix_hex": "664c6143000000221000100000000e00"
+        }
+      ]
+    },
+    {
+      "provider": "kugou",
+      "query": "晴天",
+      "search_count": 5,
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolved_host": "fsandroid.kugou.com",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000037544954320000"
+        },
+        {
+          "title": "晴天",
+          "artist": "蓝心羽",
+          "resolved_host": "fsandroid.kugou.com",
+          "http_status": 206,
+          "content_type": "application/octet-stream",
+          "audio_verified": true,
+          "prefix_hex": "49443304000000000023545353450000"
+        }
+      ]
+    },
+    {
+      "provider": "livepoo",
+      "query": "晴天",
+      "search_count": 0,
+      "samples": []
+    },
+    {
+      "provider": "migu",
+      "query": "晴天",
+      "search_count": 20,
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolved_host": "app.pd.nf.migu.cn",
+          "http_status": 200,
+          "content_type": "application/json;charset=utf-8",
+          "audio_verified": false,
+          "prefix_hex": "7b22636f6465223a2232303030303222"
+        },
+        {
+          "title": "晴天 (Live)",
+          "artist": "周杰伦",
+          "resolved_host": "app.pd.nf.migu.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "4944330300000000004b544c454e0000"
+        }
+      ]
+    },
+    {
+      "provider": "qqmp3",
+      "query": "晴天",
+      "search_count": 5,
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "张信哲",
+          "resolved_host": "car-er.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "4944330300000000003b544954320000"
+        },
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolved_host": "car-er.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000037544954320000"
+        }
+      ]
+    },
+    {
+      "provider": "jianbin-netease",
+      "query": "晴天",
+      "search_count": 0,
+      "samples": []
+    },
+    {
+      "provider": "jianbin-qq",
+      "query": "晴天",
+      "search_count": 0,
+      "samples": []
+    },
+    {
+      "provider": "jianbin-kugou",
+      "query": "晴天",
+      "search_count": 0,
+      "samples": []
+    },
+    {
+      "provider": "jianbin-kuwo",
+      "query": "晴天",
+      "search_count": 0,
+      "samples": []
+    }
+  ],
+  "after_repairs_first_query": [
+    {
+      "provider": "netease",
+      "query": "晴天",
+      "search_count": 5,
+      "samples": [
+        {
+          "title": "晴天(深情版)",
+          "artist": "Lucky小爱",
+          "resolved_host": "m701.music.126.net",
+          "http_status": 206,
+          "content_type": "audio/mpeg; charset=UTF-8",
+          "audio_verified": true,
+          "prefix_hex": "49443304000000000023545353450000",
+          "qt_playback": {
+            "started": true,
+            "position_ms": 657,
+            "duration_ms": 279041
+          }
+        },
+        {
+          "title": "晴天 (原唱 周杰伦)",
+          "artist": "RyaVocal",
+          "resolved_host": "m701.music.126.net",
+          "http_status": 206,
+          "content_type": "audio/mpeg; charset=UTF-8",
+          "audio_verified": true,
+          "prefix_hex": "49443304000000000023545353450000"
+        }
+      ]
+    },
+    {
+      "provider": "bodian",
+      "query": "晴天",
+      "search_count": 10,
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolved_host": "car-er.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000037544954320000",
+          "qt_playback": {
+            "started": true,
+            "position_ms": 184,
+            "duration_ms": 269821
+          }
+        },
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolved_host": "car-lw.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "4944330300000000004d544954320000"
+        }
+      ]
+    },
+    {
+      "provider": "gequhai",
+      "query": "晴天",
+      "search_count": 15,
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolved_host": "car-er.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000037544954320000",
+          "qt_playback": {
+            "started": true,
+            "position_ms": 667,
+            "duration_ms": 269826
+          }
+        },
+        {
+          "title": "像晴天像雨天",
+          "artist": "汪苏泷",
+          "resolved_host": "car-er.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "4944330300000000005f544954320000"
+        }
+      ]
+    },
+    {
+      "provider": "kugou",
+      "query": "晴天",
+      "search_count": 5,
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolved_host": "fsandroid.kugou.com",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000037544954320000",
+          "qt_playback": {
+            "started": true,
+            "position_ms": 332,
+            "duration_ms": 269821
+          }
+        },
+        {
+          "title": "晴天",
+          "artist": "蓝心羽",
+          "resolved_host": "fsandroid.kugou.com",
+          "http_status": 206,
+          "content_type": "application/octet-stream",
+          "audio_verified": true,
+          "prefix_hex": "49443304000000000023545353450000"
+        }
+      ]
+    },
+    {
+      "provider": "livepoo",
+      "query": "晴天",
+      "search_count": 0,
+      "samples": []
+    },
+    {
+      "provider": "qq",
+      "query": "晴天",
+      "search_count": 5,
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolved_host": "ws.stream.qqmusic.qq.com",
+          "http_status": 206,
+          "content_type": "audio/x-ogg",
+          "audio_verified": true,
+          "prefix_hex": "664c6143000000221000100000028a00",
+          "qt_playback": {
+            "started": true,
+            "position_ms": 629,
+            "duration_ms": 269821
+          }
+        },
+        {
+          "title": "晴天",
+          "artist": "Lucky小爱",
+          "resolved_host": "ws.stream.qqmusic.qq.com",
+          "http_status": 206,
+          "content_type": "audio/x-ogg",
+          "audio_verified": true,
+          "prefix_hex": "664c6143000000221000100000000e00"
+        }
+      ]
+    },
+    {
+      "provider": "qqmp3",
+      "query": "晴天",
+      "search_count": 5,
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "张信哲",
+          "resolved_host": "car-er.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "4944330300000000003b544954320000",
+          "qt_playback": {
+            "started": true,
+            "position_ms": 798,
+            "duration_ms": 262333
+          }
+        },
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolved_host": "car-er.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000037544954320000"
+        }
+      ]
+    },
+    {
+      "provider": "jianbin-netease",
+      "query": "晴天",
+      "search_count": 10,
+      "samples": [
+        {
+          "title": "晴天(深情版)",
+          "artist": "Lucky小爱",
+          "resolved_host": "m801.music.126.net",
+          "http_status": 206,
+          "content_type": "audio/mpeg; charset=UTF-8",
+          "audio_verified": true,
+          "prefix_hex": "49443304000000000023545353450000",
+          "qt_playback": {
+            "started": true,
+            "position_ms": 655,
+            "duration_ms": 279041
+          }
+        },
+        {
+          "title": "晴天 (原唱 周杰伦)",
+          "artist": "RyaVocal",
+          "resolved_host": "m801.music.126.net",
+          "http_status": 206,
+          "content_type": "audio/mpeg; charset=UTF-8",
+          "audio_verified": true,
+          "prefix_hex": "49443304000000000023545353450000"
+        }
+      ]
+    },
+    {
+      "provider": "migu",
+      "query": "晴天",
+      "search_count": 20,
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "error": "ValueError: 咪咕未返回可用音频，该歌曲可能暂不可用，请尝试其他歌曲或音源"
+        },
+        {
+          "title": "晴天 (Live)",
+          "artist": "周杰伦",
+          "resolved_host": "freetyst.nf.migu.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "4944330300000000004b544c454e0000",
+          "qt_playback": {
+            "started": true,
+            "position_ms": 581,
+            "duration_ms": 249783
+          }
+        }
+      ]
+    },
+    {
+      "provider": "jianbin-qq",
+      "query": "晴天",
+      "search_count": 10,
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolved_host": "aqqmusic.tc.qq.com",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000037544954320000",
+          "qt_playback": {
+            "started": true,
+            "position_ms": 245,
+            "duration_ms": 269821
+          }
+        },
+        {
+          "title": "晴天",
+          "artist": "刘瑞琦",
+          "resolved_host": "isure6.stream.qqmusic.qq.com",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "4944330300000000003f544954320000"
+        }
+      ]
+    },
+    {
+      "provider": "jianbin-kugou",
+      "query": "晴天",
+      "search_count": 10,
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolved_host": "fsandroid.kugou.com",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000037544954320000",
+          "qt_playback": {
+            "started": true,
+            "position_ms": 684,
+            "duration_ms": 269821
+          }
+        },
+        {
+          "title": "晴天",
+          "artist": "蓝心羽",
+          "resolved_host": "fsandroid.kugou.com",
+          "http_status": 206,
+          "content_type": "application/octet-stream",
+          "audio_verified": true,
+          "prefix_hex": "49443304000000000023545353450000"
+        }
+      ]
+    },
+    {
+      "provider": "jianbin-kuwo",
+      "query": "晴天",
+      "search_count": 10,
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolved_host": "kw-er.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000037544954320000",
+          "qt_playback": {
+            "started": true,
+            "position_ms": 986,
+            "duration_ms": 269821
+          }
+        },
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolved_host": "kw-lw.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "4944330300000000004d544954320000"
+        }
+      ]
+    }
+  ],
+  "after_repairs_second_query": [
+    {
+      "provider": "bodian",
+      "query": "稻香",
+      "search_count": 10,
+      "samples": [
+        {
+          "title": "稻香",
+          "artist": "周杰伦",
+          "resolved_host": "car-er.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000037544954320000"
+        },
+        {
+          "title": "稻香",
+          "artist": "周杰伦",
+          "resolved_host": "car-bj.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "fffbe044000000000000000000000000"
+        }
+      ]
+    },
+    {
+      "provider": "netease",
+      "query": "稻香",
+      "search_count": 5,
+      "samples": [
+        {
+          "title": "稻香(深情版)",
+          "artist": "Lucky小爱",
+          "resolved_host": "m801.music.126.net",
+          "http_status": 206,
+          "content_type": "audio/mpeg; charset=UTF-8",
+          "audio_verified": true,
+          "prefix_hex": "49443304000000000023545353450000"
+        },
+        {
+          "title": "稻香",
+          "artist": "Lie",
+          "resolved_host": "m701.music.126.net",
+          "http_status": 206,
+          "content_type": "audio/mpeg; charset=UTF-8",
+          "audio_verified": true,
+          "prefix_hex": "49443304000000000023545353450000"
+        }
+      ]
+    },
+    {
+      "provider": "gequhai",
+      "query": "稻香",
+      "search_count": 15,
+      "samples": [
+        {
+          "title": "稻香",
+          "artist": "周杰伦",
+          "resolved_host": "car-er.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000037544954320000"
+        },
+        {
+          "title": "稻香+简单爱+甜甜的+花海+珊瑚海+爱的飞行日记+阳光宅男+她的睫毛+晴天+七里香+一路向北+最长的电影+最伟大的作品+夜的第七章+兰亭序+烟花易冷+千里之外+红尘客栈+青花瓷 (网友改编)",
+          "artist": "浅影阿&九三",
+          "resolved_host": "car-er.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000122544954320000"
+        }
+      ]
+    },
+    {
+      "provider": "kugou",
+      "query": "稻香",
+      "search_count": 5,
+      "samples": [
+        {
+          "title": "稻香",
+          "artist": "周杰伦",
+          "resolved_host": "fsandroid.kugou.com",
+          "http_status": 206,
+          "content_type": "application/octet-stream",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000037544954320000"
+        },
+        {
+          "title": "稻香 (童声版)",
+          "artist": "贝瓦儿歌",
+          "resolved_host": "fsandroid.kugou.com",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000035544954320000"
+        }
+      ]
+    },
+    {
+      "provider": "qq",
+      "query": "稻香",
+      "search_count": 5,
+      "samples": [
+        {
+          "title": "稻香",
+          "artist": "周杰伦",
+          "resolved_host": "ws.stream.qqmusic.qq.com",
+          "http_status": 206,
+          "content_type": "audio/x-ogg",
+          "audio_verified": true,
+          "prefix_hex": "664c614300000022100010000009e900"
+        },
+        {
+          "title": "稻香",
+          "artist": "贝瓦儿歌",
+          "resolved_host": "ws.stream.qqmusic.qq.com",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000035544954320000"
+        }
+      ]
+    },
+    {
+      "provider": "livepoo",
+      "query": "稻香",
+      "search_count": 0,
+      "samples": []
+    },
+    {
+      "provider": "migu",
+      "query": "稻香",
+      "search_count": 20,
+      "samples": [
+        {
+          "title": "稻香",
+          "artist": "周杰伦",
+          "error": "ValueError: 咪咕未返回可用音频，该歌曲可能暂不可用，请尝试其他歌曲或音源"
+        },
+        {
+          "title": "稻香 (Live)",
+          "artist": "周杰伦",
+          "resolved_host": "freetyst.nf.migu.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "4944330300000000004b544c454e0000"
+        }
+      ]
+    },
+    {
+      "provider": "qqmp3",
+      "query": "稻香",
+      "search_count": 5,
+      "samples": [
+        {
+          "title": "稻香",
+          "artist": "大宥",
+          "resolved_host": "car-lv.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000033544954320000"
+        },
+        {
+          "title": "稻香",
+          "artist": "周杰伦",
+          "resolved_host": "car-er.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000037544954320000"
+        }
+      ]
+    },
+    {
+      "provider": "jianbin-netease",
+      "query": "稻香",
+      "search_count": 10,
+      "samples": [
+        {
+          "title": "稻香(深情版)",
+          "artist": "Lucky小爱",
+          "resolved_host": "m801.music.126.net",
+          "http_status": 206,
+          "content_type": "audio/mpeg; charset=UTF-8",
+          "audio_verified": true,
+          "prefix_hex": "49443304000000000023545353450000"
+        },
+        {
+          "title": "稻香",
+          "artist": "Lie",
+          "resolved_host": "m801.music.126.net",
+          "http_status": 206,
+          "content_type": "audio/mpeg; charset=UTF-8",
+          "audio_verified": true,
+          "prefix_hex": "49443304000000000023545353450000"
+        }
+      ]
+    },
+    {
+      "provider": "jianbin-kugou",
+      "query": "稻香",
+      "search_count": 10,
+      "samples": [
+        {
+          "title": "稻香",
+          "artist": "周杰伦",
+          "resolved_host": "fsandroid.kugou.com",
+          "http_status": 206,
+          "content_type": "application/octet-stream",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000037544954320000"
+        },
+        {
+          "title": "稻香 (童声版)",
+          "artist": "贝瓦儿歌",
+          "resolved_host": "fsandroid.kugou.com",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000035544954320000"
+        }
+      ]
+    },
+    {
+      "provider": "jianbin-qq",
+      "query": "稻香",
+      "search_count": 10,
+      "samples": [
+        {
+          "title": "稻香",
+          "artist": "周杰伦",
+          "resolved_host": "aqqmusic.tc.qq.com",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000037544954320000"
+        },
+        {
+          "title": "稻香 (童声版)",
+          "artist": "贝瓦儿歌",
+          "resolved_host": "aqqmusic.tc.qq.com",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000035544954320000"
+        }
+      ]
+    },
+    {
+      "provider": "jianbin-kuwo",
+      "query": "稻香",
+      "search_count": 10,
+      "samples": [
+        {
+          "title": "稻香",
+          "artist": "周杰伦",
+          "resolved_host": "kw-er.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "49443303000000000037544954320000"
+        },
+        {
+          "title": "稻香",
+          "artist": "周杰伦",
+          "resolved_host": "kw-bj.kuwo.cn",
+          "http_status": 206,
+          "content_type": "audio/mpeg",
+          "audio_verified": true,
+          "prefix_hex": "fffbe044000000000000000000000000"
+        }
+      ]
+    }
+  ],
+  "livepoo_additional_check": {
+    "query": "周杰伦",
+    "http_status": 200,
+    "site_message": "未找到到歌曲,查询数据为空"
+  },
+  "migu_limit": "Original recordings tested returned API errors; Live versions produced valid audio. No claim that original recordings were repaired."
+}

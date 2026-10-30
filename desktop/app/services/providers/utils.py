@@ -6,6 +6,10 @@ from typing import Any
 from urllib.parse import quote, unquote, urljoin, urlparse
 
 from app.models.music import LyricLine
+from app.services.audio import checked_audio_extension
+
+AUDIO_CONTENT_TYPES = ("audio/", "application/octet-stream")
+AUDIO_EXTENSIONS = {"aac", "flac", "m4a", "mp3", "ogg", "opus", "wav"}
 
 
 def clean_text(value: str | None) -> str:
@@ -13,9 +17,8 @@ def clean_text(value: str | None) -> str:
 
 
 def extract_ext(url: str, fallback: str = "mp3") -> str:
-    clean_url = url.split("?", 1)[0]
-    suffix = clean_url.rsplit(".", 1)
-    return suffix[1] if len(suffix) > 1 and suffix[1] else fallback
+    suffix = urlparse(url).path.rsplit(".", 1)[-1].lower()
+    return suffix if suffix in AUDIO_EXTENSIONS else fallback
 
 
 def absolute_url(value: str | None, base_url: str) -> str | None:
@@ -25,7 +28,40 @@ def absolute_url(value: str | None, base_url: str) -> str | None:
 
 
 def is_http_url(value: Any) -> bool:
-    return isinstance(value, str) and value.startswith("http")
+    if not isinstance(value, str):
+        return False
+    try:
+        parsed = urlparse(value)
+        return parsed.scheme in {"http", "https"} and bool(parsed.hostname) and not parsed.username and not parsed.password
+    except ValueError:
+        return False
+
+
+def validate_audio_url(
+    http_client: Any,
+    url: str,
+    *,
+    headers: dict[str, str] | None = None,
+    timeout: int = 15,
+    verify: bool = True,
+) -> str:
+    request_headers = {**(headers or {}), "Range": "bytes=0-4095"}
+    response = http_client.get_response(
+        url,
+        headers=request_headers,
+        timeout=timeout,
+        verify=verify,
+        stream=True,
+    )
+    try:
+        content_type = str(response.headers.get("content-type") or "").lower()
+        final_url = response.url
+        # Inspect a bounded prefix: MIME can mislabel valid audio or error pages.
+        prefix = next(response.iter_content(chunk_size=4096), b"")
+        checked_audio_extension(prefix, content_type, url=final_url)
+        return final_url
+    finally:
+        response.close()
 
 
 def safe_json_loads(value: Any) -> Any:

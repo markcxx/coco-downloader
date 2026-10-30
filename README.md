@@ -1,10 +1,7 @@
 <div align="center">
   <img src="desktop/app/resource/images/logo/CocoDownloader.png" alt="CoCo Downloader Logo" width="112" height="112" />
   <h1>CoCo Downloader</h1>
-  <p>一个覆盖 Web 与桌面端的音乐搜索、播放和下载项目。</p>
-</div>
-
-<div align="center">
+  <p>音乐搜索与下载工具，提供 Web 和 Python/PyQt 桌面客户端。</p>
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
 ![React](https://img.shields.io/badge/React-19-149eca)
@@ -13,214 +10,181 @@
 ![QFluentWidgets](https://img.shields.io/badge/QFluentWidgets-UI-0078d4)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
+[下载桌面客户端](https://github.com/markcxx/coco-downloader/releases)
+
 </div>
 
-## 项目定位
+## 功能介绍
 
-CoCo Downloader 不是单一页面应用，而是一组围绕“音乐检索与获取体验”组织的 Web 与桌面客户端实现。
+### Web 端
 
-仓库当前包含两条主线：
-
-- `src/`：主 Web 应用，提供音乐搜索、在线试听、批量下载、播放栏和主题体验。
-- `desktop/`：PyQt5 桌面端，提供原生窗口、搜索列表、播放栏、下载任务管理和本地配置能力。
-
-Web 端适合浏览器和 Docker 部署；桌面端适合打包成 Windows 安装包或便携版。
-
-## 功能概览
-
-### Web 应用
-
-- 多音源聚合搜索
-- 在线播放与底部播放器
-- 播放、暂停、上一曲、下一曲、进度拖动、音量控制和播放模式切换
-- 批量下载与下载抽屉
-- JOOX 音质选择弹窗
-- 深色 / 浅色主题切换
-- 基于 Next.js App Router 的 API Routes
+- **歌曲搜索**：按平台与第三方渠道搜索，支持结果筛选、分页和多选。
+- **音乐下载**：单曲下载、批量下载、音质选择和任务管理，具体能力随渠道而定。
+- **主题切换**：支持浅色与深色主题。
+- **在线播放**：播放/暂停、上下曲、进度与音量、播放模式及全屏歌词。
+- 不包含发现歌单、排行榜和歌单导入。
 
 ### 桌面端
 
-`desktop/` 是 PyQt5 桌面客户端，核心体验更接近本地音乐工具。
+- 使用 QFluentWidgets 级联菜单选择平台及渠道，保留自定义搜索结果列表。
+- 支持搜索、分页、单曲与批量下载、音质选择和任务管理。
+- 支持下载目录、文件命名规则、主题与配置保存。
+- 独立 Python 服务层，仅提供搜索下载，不包含播放器。
+- 支持 Nuitka 打包和 Windows Inno Setup 安装包构建。
 
-主要能力：
+## 平台与渠道
 
-- 搜索音乐并展示结果列表
-- 播放、暂停、上一曲、下一曲、播放模式切换
-- 播放进度拖动与音量控制
-- 单曲下载与下载任务展示
-- 下载目录和文件命名规则配置
-- 浅色 / 深色 / 跟随系统主题
-- 用户配置保存到系统 AppData 目录
-- 支持 Nuitka 打包和 Inno Setup 安装包制作
+| 音乐平台 | 渠道 |
+| --- | --- |
+| 网易云音乐 | Meting、GD音乐台、51ape、煎饼 |
+| QQ 音乐 | VKeys、51ape、煎饼 |
+| 酷狗音乐 | 煎饼、90svip |
+| 酷我音乐 | 波点 · 天宝、米兔（QQMP3）、煎饼、歌曲海、歌曲客、力音 · 网盘下载 |
 
-## 架构解析
+两端按所选渠道执行搜索与解析，保留上表中各渠道的原有实现。部分渠道内部直接请求音乐平台的搜索接口；界面不提供独立的“官方曲库搜索”模式。默认渠道为 GD音乐台。
 
-```text
-coco-downloader/
-├─ src/                         # 主 Web 应用
-│  ├─ app/                      # Next.js App Router 页面与 API Routes
-│  │  ├─ api/download/          # 下载接口
-│  │  ├─ api/search/            # 搜索接口
-│  │  └─ api/url/               # 播放直链接口
-│  ├─ components/               # Web UI 组件
-│  ├─ lib/providers/            # 音源 provider 策略实现
-│  └─ types/                    # TypeScript 类型
-├─ desktop/                     # PyQt5 桌面端
-│  ├─ CoCo-downloader.py        # 桌面端入口
-│  ├─ app/common/               # 配置、资源、信号总线和样式管理
-│  ├─ app/components/           # 播放栏、搜索卡片、下载任务卡片等复用组件
-│  ├─ app/services/             # 搜索、下载、播放和 provider 服务
-│  ├─ app/view/                 # 主窗口、首页、下载页、设置页
-│  └─ app/resource/             # qrc、qss、图片、翻译资源
-├─ Dockerfile
-├─ docker-compose.yml
-└─ package.json
-```
-
-### Web 端分层
-
-Web 主应用把“页面交互”和“音源解析”拆开：
-
-- `src/app/page.tsx` 负责组织首页体验。
-- `src/components/PlayerBar.tsx`、`DownloadDrawer.tsx`、`QualitySelectModal.tsx` 等组件承载交互界面。
-- `src/app/api/*` 是浏览器调用的服务入口。
-- `src/lib/providers/impl/*` 是各个音源的实际解析实现。
-
-这种结构让前端不直接关心每个音源的细节。新增音源时，优先在 `providers` 层补实现，再在统一入口注册。
-
-### 桌面端分层
-
-桌面端按 Qt 应用常见边界拆分：
-
-- `view/`：页面和窗口，如主窗口、首页、下载页、设置页。
-- `components/`：可复用 UI 组件，如播放栏、搜索卡片、下载任务卡片。
-- `services/`：业务服务，如搜索服务、下载服务、播放服务。
-- `services/providers/`：不同音源 provider。
-- `common/`：配置、资源、样式、信号总线等基础设施。
-- `models/`：音乐数据模型。
-
-配置文件通过 `QStandardPaths.AppDataLocation` 写入用户级 AppData 目录，避免打包后写入安装目录。
+渠道的可用音质、分页和下载方式有所不同。Web 中标注“浏览器下载”的渠道需逐首交给浏览器处理；力音仅提供源站网盘入口。PyQt 可对返回音频直链的渠道进行批量下载，源站入口仍需逐首操作。渠道可用性以服务实际状态为准。
 
 ## 快速开始
 
-### Web 主应用
+### Web 开发
+
+使用 Node.js 20.9 或更高版本，在项目根目录执行：
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
-默认访问：
+访问 [http://localhost:3000](http://localhost:3000)。
 
-```text
-http://localhost:3000
-```
-
-生产构建：
+生产环境运行：
 
 ```bash
 npm run build
 npm run start
 ```
 
-### Docker
+### Docker 部署
+
+使用仓库提供的 Compose 配置：
 
 ```bash
 docker compose up -d
 ```
 
-或直接运行镜像：
+默认使用 `markcxx/coco-downloader:latest` 镜像并监听 `3000` 端口，可通过 `PORT` 环境变量调整端口。
 
-```bash
-docker run -d -p 3000:3000 --name coco-downloader markcxx/coco-downloader:latest
-```
+### 桌面端开发
 
-### 桌面端
+使用 Python 3.12 与 uv。首次配置环境时，在项目根目录打开 PowerShell，执行：
 
-```bash
+```powershell
 cd desktop
-pip install -r requirements.txt
-python CoCo-downloader.py
+uv venv --python 3.12
+uv pip install -r requirements-lock.txt
 ```
 
-如果修改了 `resource.qrc`，需要重新生成 Qt 资源文件：
+已有环境时，在 `desktop` 目录直接启动：
 
-```bash
-python -m PyQt5.pyrcc_main app/resource/resource.qrc -o app/common/resource.py
+```powershell
+.\.venv\Scripts\python.exe CoCo-downloader.py
 ```
 
-Windows 打包：
+修改 Qt 资源后，在同一目录重新生成资源文件：
+
+```powershell
+.\.venv\Scripts\python.exe -m PyQt5.pyrcc_main app/resource/resource.qrc -o app/common/resource.py
+```
+
+macOS/Linux 使用普通依赖清单创建环境，在项目根目录执行：
 
 ```bash
+uv venv --python 3.12 desktop/.venv
+uv pip install --python desktop/.venv/bin/python -r desktop/requirements.txt
 cd desktop
-python deploy.py
+.venv/bin/python CoCo-downloader.py
 ```
 
-安装包脚本位于：
+桌面服务接口、资源编译和测试说明见 [desktop/README.md](desktop/README.md)。
+
+### Windows 打包
+
+安装 Visual Studio C++ Build Tools 与 Inno Setup，在 `desktop` 目录执行 Nuitka 打包脚本：
+
+```powershell
+.\.venv\Scripts\python.exe deploy.py
+```
+
+程序输出到 `desktop/build/CoCo-downloader.dist/`。随后用 Inno Setup 打开并编译 `desktop/CoCo-downloader.iss`，安装包输出到 `desktop/dist/`。
+
+安装包版本可通过 `APP_VERSION` 环境变量设置，应与桌面程序版本保持一致。
+
+## 项目结构
 
 ```text
-desktop/CoCo-downloader-setup.iss
+coco-downloader/
+├─ src/
+│  ├─ app/                  # Web 页面与 API 路由
+│  ├─ components/           # 共用界面组件
+│  ├─ hooks/                # Web 播放状态与音频生命周期
+│  ├─ lib/
+│  │  ├─ providers/         # 搜索与音频解析渠道
+│  │  └─ lyrics/            # 独立歌词获取
+│  └─ types/                # TypeScript 类型定义
+├─ desktop/
+│  ├─ CoCo-downloader.py    # 桌面程序入口
+│  ├─ app/                  # 桌面界面、服务、配置与资源
+│  ├─ deploy.py             # Nuitka 打包脚本
+│  └─ CoCo-downloader.iss   # Inno Setup 安装脚本
+├─ tests/                   # Web 接口与播放队列测试
+├─ Dockerfile
+├─ docker-compose.yml
+└─ package.json
 ```
 
-## 音源说明
+## 验证
 
-项目内聚合了多个第三方音乐搜索与解析来源。当前代码中包含的 provider 主要包括：
+在仓库根目录执行：
 
-- 爱听
-- 波点音乐
-- 布谷音乐
-- 歌曲宝
-- 歌曲海
-- 煎饼音乐系列（支持多平台解析）
-- JOOX
-- 米兔音乐
-- LivePoo
-- 咪咕音乐
-- cenguigui解析（cenguigui API）
-- 海棠解析（haitang API）
-- XCVTS解析（xcvts/cyapi/vkeys API）
-- QQMP3
+```bash
+npm run lint
+npm test
+npm run build
+npx tsc --noEmit
+```
 
-不同音源的可用性、音质和返回字段会随第三方站点变化而变化。项目通过 provider 层隔离这些差异，尽量把上层 UI 和 API 保持稳定。
+Python 测试命令见 [桌面端文档](desktop/README.md#验证)。测试通过不代表第三方渠道实时可用；需要联网诊断时，可按 [工具说明](desktop/tools/README.md) 单独运行探测。
+
+## Web 接口
+
+| 路由 | 用途 |
+| --- | --- |
+| `GET /api/search` | 使用 `q`、`provider`、`limit`、`offset` 搜索所选渠道 |
+| `GET /api/url` | 获取播放地址，接收 `id`、`provider` 和 JSON 编码的 `extra` |
+| `GET /api/download` | 获取下载地址或源站入口，音频由用户浏览器获取 |
+| `GET /api/lyric` | 获取歌词，歌词失败不影响播放或下载 |
+| `GET /api/jbsou/asset` | 煎饼渠道的图片资源适配 |
+
+搜索结果保留渠道原生 ID。播放与下载直接交给对应渠道解析，不提供歌单发现、榜单、分享链接导入或跨渠道歌曲身份转换。
 
 ## 技术栈
 
-### Web
-
-- Next.js 16
-- React 19
-- TypeScript
-- Tailwind CSS
-- Framer Motion / motion
-- Lucide React
-- Axios
-- Cheerio
-
-### Desktop
-
-- Python
-- PyQt5
-- PyQt-Fluent-Widgets
-- PyQt5-Frameless-Window
-- Nuitka
-- Inno Setup
-
+| 部分 | 主要技术 |
+| --- | --- |
+| Web | Next.js、React、TypeScript、Tailwind CSS、Ant Design、Framer Motion |
+| 桌面端 | Python、PyQt5、QFluentWidgets、PyQt5-Frameless-Window |
+| 构建与部署 | Docker、Nuitka、Inno Setup |
 
 ## 致谢
 
-桌面端界面基于 [QFluentWidgets](https://github.com/zhiyiYo/PyQt-Fluent-Widgets) 构建。QFluentWidgets 为 PyQt/PySide 提供了 Fluent Design 风格的组件、设置卡片、导航、主题和图标体系，让桌面端能够以较低成本获得现代化的 Windows 应用体验。
+- [QFluentWidgets](https://github.com/zhiyiYo/PyQt-Fluent-Widgets)：桌面端 Fluent Design 界面组件。
+- [musicdl](https://github.com/CharlesPikachu/musicdl)：部分接口实现参考。
+- [LINUX DO](https://linux.do/)：社区支持与帮助。
 
-感谢LINUXDO社区提供的帮助：https://linux.do/
+## 使用说明
 
-## 免责声明
-
-1. 本项目仅供个人学习、技术研究与交流使用，严禁用于商业用途。
-2. 项目不存储任何音乐文件，所有音乐内容均来自第三方公开API接口。
-3. 项目中使用的所有音源接口均为第三方服务提供。
-4. 第三方音源的可用性、数据准确性和版权状态不由本项目保证。
-6. 请勿将本项目用于任何违反当地法律法规的行为，请尊重音乐版权。
-7. 如本项目内容侵犯了您的权益，请通过 GitHub Issues 联系处理，我们会及时响应。
-8. **下载的音乐文件仅供个人学习研究使用，，请支持正版音乐。**
+音乐内容来自第三方服务，本项目不存储音乐文件。请遵守相关平台规则，尊重音乐版权并支持正版音乐。
 
 ## 许可证
 

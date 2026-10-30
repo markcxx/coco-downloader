@@ -9,7 +9,7 @@ DEBUG = "__compiled__" not in globals()
 
 YEAR = 2026
 AUTHOR = "markcxx"
-VERSION = "v0.0.2"
+VERSION = "v0.0.3"
 APP_NAME = "coco-downloader"
 APP_LOGO_PATH = ":/app/images/logo/CocoDownloader.svg"
 HELP_URL = "https://github.com/markcxx/coco-downloader"

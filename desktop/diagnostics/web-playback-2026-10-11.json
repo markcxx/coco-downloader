@@ -1,0 +1,46 @@
+[
+  {
+    "provider": "云音乐",
+    "error": "page.waitForFunction: Timeout 40000ms exceeded.",
+    "toasts": [],
+    "audio": [
+      {
+        "paused": true,
+        "time": 0,
+        "ready": 0,
+        "network": 0,
+        "host": ""
+      }
+    ]
+  },
+  {
+    "provider": "歌曲海",
+    "error": "locator.click: Timeout 40000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.group button[title=\"播放\"]').first()\u001b[22m\n",
+    "toasts": [],
+    "audio": [
+      {
+        "paused": true,
+        "time": 0,
+        "ready": 0,
+        "network": 0,
+        "host": ""
+      }
+    ]
+  },
+  {
+    "provider": "QQMP3",
+    "error": "locator.click: Timeout 40000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.group button[title=\"播放\"]').first()\u001b[22m\n",
+    "toasts": [
+      "搜索失败，请重试或切换渠道"
+    ],
+    "audio": [
+      {
+        "paused": true,
+        "time": 0,
+        "ready": 0,
+        "network": 0,
+        "host": ""
+      }
+    ]
+  }
+]

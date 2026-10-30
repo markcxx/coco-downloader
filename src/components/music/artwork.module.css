@@ -1,0 +1,2 @@
+.artwork { display:flex; align-items:center; justify-content:center; background:var(--hover,#e9edf3); color:var(--muted,#9298a6); overflow:hidden; }
+.artwork img { width:100%; height:100%; object-fit:cover; }

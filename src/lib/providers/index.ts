@@ -1,40 +1,38 @@
-import { MusicProvider } from '@/types/music';
-import { GequbaoProvider } from './impl/gequbao';
-import { GequhaiProvider } from './impl/gequhai';
-import { BuguProvider } from './impl/bugu';
 import { BodianProvider } from './impl/bodian';
 import { QQProvider } from './impl/qq';
 import { KugouProvider } from './impl/kugou';
+import { NeteaseOfficialProvider } from './impl/netease';
+import { At38Provider } from './impl/at38';
+import { GequhaiProvider } from './impl/gequhai';
+import { MusicProvider } from '@/types/music';
 import { QQMp3Provider } from './impl/qqmp3';
-import { MiguProvider } from './impl/migu';
 import { LivepooProvider } from './impl/livepoo';
 import { JianbinProvider } from './impl/jianbin';
-import { AitingProvider } from './impl/aiting';
-import { JooxProvider } from './impl/joox';
-import { NeteaseOfficialProvider } from './impl/netease';
+import { GDStudioProvider } from './impl/gdstudio';
+import { GequkeProvider } from './impl/gequke';
 
 const providers: Record<string, MusicProvider> = {
-  'netease': new NeteaseOfficialProvider(),
+  netease: new NeteaseOfficialProvider(),
   qq: new QQProvider(),
   kugou: new KugouProvider(),
-  gequbao: new GequbaoProvider(),
-  gequhai: new GequhaiProvider(),
-  bugu: new BuguProvider(),
   bodian: new BodianProvider(),
+  'gdstudio-netease': new GDStudioProvider(),
+  'at38-netease': new At38Provider('at38-netease', 'wy'),
+  'at38-qq': new At38Provider('at38-qq', 'qq'),
+  gequhai: new GequhaiProvider(),
+  gequke: new GequkeProvider(),
   qqmp3: new QQMp3Provider(),
-  mitu: new QQMp3Provider('mitu'),
-  joox: new JooxProvider(),
-  migu: new MiguProvider(),
   livepoo: new LivepooProvider(),
-  aiting: new AitingProvider(),
   'jianbin-netease': new JianbinProvider('jianbin-netease', 'netease'),
   'jianbin-qq': new JianbinProvider('jianbin-qq', 'qq'),
   'jianbin-kugou': new JianbinProvider('jianbin-kugou', 'kugou'),
   'jianbin-kuwo': new JianbinProvider('jianbin-kuwo', 'kuwo'),
 };
 
-export function getProvider(name: string = 'netease'): MusicProvider {
-  return providers[name] || providers['netease'];
+export function getProvider(name: string = 'gdstudio-netease'): MusicProvider {
+  const provider = Object.hasOwn(providers, name) ? providers[name] : undefined;
+  if (!provider) throw new Error('该渠道已下架或不存在，请重新选择音乐平台与渠道');
+  return provider;
 }
 
 export function getAllProviders(): MusicProvider[] {

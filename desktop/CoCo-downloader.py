@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import QApplication
 from qfluentwidgets import FluentTranslator
 
 from app.common.config import cfg
+from app.common.error_handler import install_error_handler
 from app.view.main_window import MainWindow
 
 
@@ -23,6 +24,7 @@ else:
 # create application
 app = QApplication(sys.argv)
 app.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
+error_reporter = install_error_handler(app)
 
 # internationalization
 locale = cfg.get(cfg.language).value
@@ -35,6 +37,7 @@ app.installTranslator(galleryTranslator)
 
 # create main window
 w = MainWindow()
+error_reporter.window = w
 w.show()
 
 app.exec()

@@ -1,14 +1,6 @@
-# coding: utf-8
 from app.models.music import MusicItem
-
-from .providers import get_provider
+from .music_service import search_music as _search
 
 
 def search_music(keyword: str, platform: str, limit: int = 20, offset: int = 0) -> list[MusicItem]:
-    """Search music from the selected provider."""
-    query = keyword.strip()
-    if not query:
-        return []
-
-    provider = get_provider(platform)
-    return provider.search(query, limit=limit, offset=offset)
+    return _search(platform, keyword, limit, offset)

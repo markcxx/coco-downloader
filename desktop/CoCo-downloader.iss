@@ -6,7 +6,7 @@
 #define MyAppURL "https://github.com/markcxx/coco-downloader"
 #define EnvAppVersion GetEnv("APP_VERSION")
 #if EnvAppVersion == ""
-  #define MyAppVersion "0.0.2"
+  #define MyAppVersion "0.0.3"
 #else
   #define MyAppVersion EnvAppVersion
 #endif
@@ -20,6 +20,8 @@ AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\CoCo Downloader
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
 OutputDir=dist
 OutputBaseFilename=CoCo-downloader-v{#MyAppVersion}-Windows-x86_64-Setup
@@ -30,7 +32,7 @@ WizardStyle=modern
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
-Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+Name: "chinesesimplified"; MessagesFile: "installer\ChineseSimplified.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked

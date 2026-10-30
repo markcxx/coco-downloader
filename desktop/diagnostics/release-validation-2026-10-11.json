@@ -1,0 +1,62 @@
+{
+  "version": "0.0.3",
+  "desktop_unit_tests": {
+    "passed": 18,
+    "failed": 0
+  },
+  "desktop_full_download": {
+    "provider": "qqmp3",
+    "bytes": 4197342,
+    "audio_prefix": "4944330300000000003b544954320000",
+    "temporary_file_cleaned": true
+  },
+  "web_build": "passed",
+  "web_changed_files_eslint": "passed",
+  "browser_error_toasts": {
+    "search": "passed",
+    "playback": "passed",
+    "download": "passed",
+    "uncaught_errors": 0
+  },
+  "browser_verified_playback_samples": [
+    {
+      "provider": "gequhai",
+      "position_seconds": 0.520312,
+      "duration_seconds": 269.746667
+    },
+    {
+      "provider": "qqmp3",
+      "position_seconds": 0.518687,
+      "duration_seconds": 262.266667
+    }
+  ],
+  "browser_followup": "Later repeated runs encountered DNS/timeout errors, including netease URL resolution; successful API/audio-prefix probes do not guarantee uninterrupted browser playback.",
+  "provider_limits": {
+    "migu": "Some original recordings fail; sampled Live recordings work.",
+    "livepoo": "No search results for tested queries; not restored."
+  },
+  "packaged_smoke": {
+    "main_window": "Coco Downloader",
+    "exit_code": 0,
+    "passed": true
+  },
+  "artifacts": {
+    "version": "0.0.3",
+    "python": "3.12.10",
+    "nuitka": "4.3",
+    "compiler": "MSVC 14.3",
+    "installer": "Inno Setup 6.7.3",
+    "files": [
+      {
+        "file": "CoCo-downloader-v0.0.3-Windows-x86_64-Portable.zip",
+        "size": 98434442,
+        "sha256": "17b4a9862da8bf31482523f899534b4cfe0a156e0ea40b28d86e3326fa105b5b"
+      },
+      {
+        "file": "CoCo-downloader-v0.0.3-Windows-x86_64-Setup.exe",
+        "size": 61672516,
+        "sha256": "720be67acf8000ea768dfd301eac1b4e6f5b2ca2a9f4d1986f720e104d118e65"
+      }
+    ]
+  }
+}

@@ -1,51 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getProvider } from '@/lib/providers';
-
-type LyricData = {
-  songid: string;
-  provider: string;
-  lines: Array<{ time: number; text: string }>;
-  lrc: string;
-};
-
-type LyricCapableProvider = {
-  getLyric?: (id: string, extra?: unknown) => Promise<LyricData>;
-};
-
-function parseExtra(value: string | null) {
-  if (!value) return undefined;
-  try {
-    return JSON.parse(value) as unknown;
-  } catch {
-    return undefined;
-  }
-}
+import { getMusicPlatform } from '@/lib/music-channels';
+import { NeteaseLyrics } from '@/lib/lyrics/netease';
+import { QQLyrics } from '@/lib/lyrics/qq';
+import { KugouLyrics } from '@/lib/lyrics/kugou';
+import { KuwoLyrics } from '@/lib/lyrics/kuwo';
+import type { LyricData } from '@/types/music';
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const id = searchParams.get('id');
-  const providerName = searchParams.get('provider') || 'netease';
-  const extra = parseExtra(searchParams.get('extra'));
-
-  if (!id) {
-    return NextResponse.json({ error: 'Missing id' }, { status: 400 });
-  }
-
+  const params=request.nextUrl.searchParams;
+  const id=params.get('id'), channel=params.get('provider') || 'gdstudio-netease';
+  if (!id) return NextResponse.json({error:'缺少歌曲 ID'},{status:400});
   try {
-    const provider = getProvider(providerName) as LyricCapableProvider;
-    if (!provider.getLyric) {
-      return NextResponse.json({
-        songid: id,
-        provider: providerName,
-        lines: [],
-        lrc: '',
-      });
+    const provider=getProvider(channel) as { getLyric?: (id:string,extra?:unknown)=>Promise<LyricData> };
+    const platform=getMusicPlatform(channel)?.id;
+    let songId=channel.startsWith('at38-') || channel==='gdstudio-netease' ? id : '';
+    if(channel.startsWith('jianbin-')) {
+      try {
+        const url=new URL(decodeURIComponent(decodeURIComponent(id)));
+        const expected:Record<string,string>={netease:'wy',qq:'qq',kugou:'kg',kuwo:'kw'};
+        if(url.hostname==='www.jbsou.cn' && url.searchParams.get('type')===expected[platform || '']) songId=url.searchParams.get('id') || '';
+      } catch { /* Fall back to embedded lyrics without searching metadata. */ }
     }
-
-    const lyric = await provider.getLyric(id, extra);
-    return NextResponse.json(lyric);
-  } catch (error) {
-    console.error('Lyric error:', error);
-    return NextResponse.json({ error: 'Failed to get lyric' }, { status: 500 });
-  }
+    if(songId) {
+      const client=platform==='netease'?new NeteaseLyrics():platform==='qq'?new QQLyrics():platform==='kugou'?new KugouLyrics():new KuwoLyrics();
+      try { const lyric=await client.getLyric(songId); if(lyric.lrc || lyric.lines.length) return NextResponse.json({...lyric,songid:id,provider:channel}); } catch { /* Try selected channel's embedded lyric. */ }
+    }
+    if(provider.getLyric) return NextResponse.json(await provider.getLyric(id));
+    return NextResponse.json({songid:id,provider:channel,lines:[],lrc:''});
+  } catch { return NextResponse.json({error:'歌词暂时无法获取'},{status:502}); }
 }

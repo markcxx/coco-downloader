@@ -1,0 +1,312 @@
+{
+  "checked_at": "2026-10-11T20:43:26.118984+08:00",
+  "results": [
+    {
+      "provider": "qq",
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolve_status": 200,
+          "host": "ws.stream.qqmusic.qq.com",
+          "audio_status": 206,
+          "content_type": "audio/mpeg",
+          "prefix_hex": "49443303000000000037544954320000",
+          "audio_verified": true
+        },
+        {
+          "title": "晴天",
+          "artist": "Lucky小爱",
+          "resolve_status": 200,
+          "host": "ws.stream.qqmusic.qq.com",
+          "audio_status": 206,
+          "content_type": "audio/mpeg",
+          "prefix_hex": "49443303000000000055544954320000",
+          "audio_verified": true
+        }
+      ],
+      "search_status": 200,
+      "search_count": 5
+    },
+    {
+      "provider": "netease",
+      "samples": [
+        {
+          "title": "晴天(深情版)",
+          "artist": "Lucky小爱",
+          "resolve_status": 200,
+          "host": "m801.music.126.net",
+          "audio_status": 206,
+          "content_type": "audio/mpeg; charset=UTF-8",
+          "prefix_hex": "664c6143000000220400040000001000",
+          "audio_verified": true
+        },
+        {
+          "title": "晴天 (原唱 周杰伦)",
+          "artist": "RyaVocal",
+          "resolve_status": 200,
+          "host": "m701.music.126.net",
+          "audio_status": 206,
+          "content_type": "audio/mpeg; charset=UTF-8",
+          "prefix_hex": "664c6143000000220400040000001200",
+          "audio_verified": true
+        }
+      ],
+      "search_status": 200,
+      "search_count": 5
+    },
+    {
+      "provider": "bodian",
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolve_status": 200,
+          "host": "car-er.kuwo.cn",
+          "audio_status": 206,
+          "content_type": "audio/x-flac",
+          "prefix_hex": "664c6143000000221000100000028a00",
+          "audio_verified": true
+        },
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolve_status": 200,
+          "host": "car-lw.kuwo.cn",
+          "audio_status": 206,
+          "content_type": "audio/x-flac",
+          "prefix_hex": "664c6143000000221000100000339000",
+          "audio_verified": true
+        }
+      ],
+      "search_status": 200,
+      "search_count": 10
+    },
+    {
+      "provider": "gequhai",
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolve_status": 200,
+          "host": "car-er.kuwo.cn",
+          "audio_status": 206,
+          "content_type": "audio/mpeg",
+          "prefix_hex": "49443303000000000037544954320000",
+          "audio_verified": true
+        },
+        {
+          "title": "像晴天像雨天",
+          "artist": "汪苏泷",
+          "resolve_status": 200,
+          "host": "car-er.kuwo.cn",
+          "audio_status": 206,
+          "content_type": "audio/mpeg",
+          "prefix_hex": "4944330300000000005f544954320000",
+          "audio_verified": true
+        }
+      ],
+      "search_status": 200,
+      "search_count": 15
+    },
+    {
+      "provider": "livepoo",
+      "samples": [],
+      "search_status": 200,
+      "search_count": 0
+    },
+    {
+      "provider": "migu",
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolve_status": 502,
+          "error": "咪咕未返回可用音频，该歌曲可能暂不可用，请尝试其他歌曲或音源"
+        },
+        {
+          "title": "晴天 (Live)",
+          "artist": "周杰伦",
+          "resolve_status": 200,
+          "host": "freetyst.nf.migu.cn",
+          "audio_status": 206,
+          "content_type": "audio/mpeg",
+          "prefix_hex": "4944330300000000004b544c454e0000",
+          "audio_verified": true
+        }
+      ],
+      "search_status": 200,
+      "search_count": 20
+    },
+    {
+      "provider": "kugou",
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolve_status": 200,
+          "host": "fsandroid.kugou.com",
+          "audio_status": 206,
+          "content_type": "audio/mpeg",
+          "prefix_hex": "49443303000000000037544954320000",
+          "audio_verified": true
+        },
+        {
+          "title": "晴天",
+          "artist": "蓝心羽",
+          "resolve_status": 200,
+          "host": "fsandroid.kugou.com",
+          "audio_status": 206,
+          "content_type": "application/octet-stream",
+          "prefix_hex": "49443304000000000023545353450000",
+          "audio_verified": true
+        }
+      ],
+      "search_status": 200,
+      "search_count": 5
+    },
+    {
+      "provider": "jianbin-kugou",
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolve_status": 200,
+          "host": "fsandroid.kugou.com",
+          "audio_status": 206,
+          "content_type": "audio/mpeg",
+          "prefix_hex": "49443303000000000037544954320000",
+          "audio_verified": true,
+          "cover_verified": true
+        },
+        {
+          "title": "晴天",
+          "artist": "蓝心羽",
+          "resolve_status": 200,
+          "host": "fsandroid.kugou.com",
+          "audio_status": 206,
+          "content_type": "application/octet-stream",
+          "prefix_hex": "49443304000000000023545353450000",
+          "audio_verified": true,
+          "cover_verified": true
+        }
+      ],
+      "search_status": 200,
+      "search_count": 10
+    },
+    {
+      "provider": "jianbin-netease",
+      "samples": [
+        {
+          "title": "晴天(深情版)",
+          "artist": "Lucky小爱",
+          "resolve_status": 200,
+          "host": "m801.music.126.net",
+          "audio_status": 206,
+          "content_type": "audio/mpeg; charset=UTF-8",
+          "prefix_hex": "49443304000000000023545353450000",
+          "audio_verified": true,
+          "cover_verified": true
+        },
+        {
+          "title": "晴天 (原唱 周杰伦)",
+          "artist": "RyaVocal",
+          "resolve_status": 200,
+          "host": "m801.music.126.net",
+          "audio_status": 206,
+          "content_type": "audio/mpeg; charset=UTF-8",
+          "prefix_hex": "49443304000000000023545353450000",
+          "audio_verified": true,
+          "cover_verified": true
+        }
+      ],
+      "search_status": 200,
+      "search_count": 10
+    },
+    {
+      "provider": "jianbin-qq",
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolve_status": 200,
+          "host": "aqqmusic.tc.qq.com",
+          "audio_status": 206,
+          "content_type": "audio/mpeg",
+          "prefix_hex": "49443303000000000037544954320000",
+          "audio_verified": true,
+          "cover_verified": true
+        },
+        {
+          "title": "晴天",
+          "artist": "刘瑞琦",
+          "resolve_status": 200,
+          "host": "isure6.stream.qqmusic.qq.com",
+          "audio_status": 206,
+          "content_type": "audio/mpeg",
+          "prefix_hex": "4944330300000000003f544954320000",
+          "audio_verified": true,
+          "cover_verified": true
+        }
+      ],
+      "search_status": 200,
+      "search_count": 10
+    },
+    {
+      "provider": "jianbin-kuwo",
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolve_status": 200,
+          "host": "kw-er.kuwo.cn",
+          "audio_status": 206,
+          "content_type": "audio/mpeg",
+          "prefix_hex": "49443303000000000037544954320000",
+          "audio_verified": true,
+          "cover_verified": true
+        },
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolve_status": 200,
+          "host": "kw-lw.kuwo.cn",
+          "audio_status": 206,
+          "content_type": "audio/mpeg",
+          "prefix_hex": "4944330300000000004d544954320000",
+          "audio_verified": true,
+          "cover_verified": true
+        }
+      ],
+      "search_status": 200,
+      "search_count": 10
+    },
+    {
+      "provider": "qqmp3",
+      "samples": [
+        {
+          "title": "晴天",
+          "artist": "张信哲",
+          "resolve_status": 200,
+          "host": "car-er.kuwo.cn",
+          "audio_status": 206,
+          "content_type": "audio/mpeg",
+          "prefix_hex": "4944330300000000003b544954320000",
+          "audio_verified": true
+        },
+        {
+          "title": "晴天",
+          "artist": "周杰伦",
+          "resolve_status": 200,
+          "host": "car-er.kuwo.cn",
+          "audio_status": 206,
+          "content_type": "audio/mpeg",
+          "prefix_hex": "49443303000000000037544954320000",
+          "audio_verified": true
+        }
+      ],
+      "search_status": 200,
+      "search_count": 5
+    }
+  ]
+}

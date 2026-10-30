@@ -1,38 +1,24 @@
 import axios from 'axios';
+import { validateAudioLink } from '@/lib/providers/audio-link';
 import * as cheerio from 'cheerio';
 import { MusicItem, MusicProvider, PlayInfo } from '@/types/music';
 
+const SITE_URL = 'https://www.gequhai.com';
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36';
 const SEARCH_HEADERS = {
-  'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+  'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
   'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
-  'cache-control': 'max-age=0',
-  'priority': 'u=0, i',
-  'sec-ch-ua': '"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"',
-  'sec-ch-ua-mobile': '?0',
-  'sec-ch-ua-platform': '"Windows"',
-  'sec-fetch-dest': 'document',
-  'sec-fetch-mode': 'navigate',
-  'sec-fetch-site': 'same-origin',
-  'sec-fetch-user': '?1',
-  'upgrade-insecure-requests': '1',
-  'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
+  'user-agent': USER_AGENT,
+  'referer': `${SITE_URL}/`,
 };
 
 const API_HEADERS = {
   'accept': 'application/json, text/javascript, */*; q=0.01',
-  'accept-language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
   'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
-  'origin': 'https://www.gequhai.com',
-  'priority': 'u=1, i',
-  'sec-ch-ua': '"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"',
+  'origin': SITE_URL,
   'x-custom-header': 'SecretKey',
   'x-requested-with': 'XMLHttpRequest',
-  'sec-ch-ua-mobile': '?0',
-  'sec-ch-ua-platform': '"Windows"',
-  'sec-fetch-dest': 'empty',
-  'sec-fetch-mode': 'cors',
-  'sec-fetch-site': 'same-origin',
-  'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
+  'user-agent': USER_AGENT,
 };
 
 const REQUEST_TIMEOUT = 15000;
@@ -160,12 +146,54 @@ function cleanLyric(value: string) {
 
 export class GequhaiProvider implements MusicProvider {
   name = 'gequhai';
+  private readonly cookies = new Map<string, string>();
 
-  async search(query: string): Promise<MusicItem[]> {
+  private cookieHeader() {
+    return [...this.cookies].map(([name, value]) => `${name}=${value}`).join('; ');
+  }
+
+  private rememberCookies(values: string[] | undefined) {
+    for (const cookie of values || []) {
+      const pair = cookie.split(';', 1)[0];
+      const separator = pair.indexOf('=');
+      if (separator < 1) continue;
+      const name = pair.slice(0, separator).trim();
+      const value = pair.slice(separator + 1);
+      if (!value || /;\s*max-age=0(?:;|$)/i.test(cookie)) this.cookies.delete(name);
+      else this.cookies.set(name, value);
+    }
+  }
+
+  private async fetchPage(url: string) {
+    if (new URL(url).origin !== SITE_URL) throw new Error('Invalid Gequhai page URL');
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const response = await axios.get<string>(url, {
+        headers: { ...SEARCH_HEADERS, Cookie: this.cookieHeader() },
+        responseType: 'text',
+        timeout: REQUEST_TIMEOUT,
+        validateStatus: (status) => (status >= 200 && status < 300) || status === 403,
+      });
+      const cookies = response.headers['set-cookie'];
+      this.rememberCookies(cookies);
+      // A first visit may establish a session using a 403 reload page.
+      if (response.status === 403 && cookies?.length && attempt === 0) continue;
+      if (response.status === 403) throw new Error('Gequhai rejected the search session');
+      return response.data;
+    }
+    throw new Error('Failed to establish Gequhai session');
+  }
+
+  async search(query: string, limit = 20, offset = 0): Promise<MusicItem[]> {
     try {
-      const url = `https://www.gequhai.com/s/${encodeURIComponent(query)}`;
-      const { data } = await axios.get(url, { headers: SEARCH_HEADERS, timeout: REQUEST_TIMEOUT });
-      const results = parseSearchHtml(data);
+      const keyword = query.trim();
+      if (!keyword) return [];
+      if (this.cookies.size === 0) await this.fetchPage(`${SITE_URL}/`);
+      const url = new URL('/search', SITE_URL);
+      url.searchParams.set('s', keyword);
+      const html = await this.fetchPage(url.href);
+      const start = Math.max(0, Math.floor(offset));
+      const size = Math.min(50, Math.max(1, Math.floor(limit)));
+      const results = parseSearchHtml(html).slice(start, start + size);
       return results.map((item) => ({
         id: item.id as string,
         title: item.title || '未知歌曲',
@@ -177,26 +205,21 @@ export class GequhaiProvider implements MusicProvider {
       }));
     } catch (error) {
       console.error('Gequhai search error:', error);
-      return [];
+      throw error;
     }
   }
 
   async getPlayInfo(id: string, extra?: unknown): Promise<PlayInfo> {
     try {
-      const playUrl = (() => {
-        const candidate = (extra as { playUrl?: unknown } | undefined)?.playUrl;
-        return typeof candidate === 'string' && candidate.trim()
-          ? candidate
-          : `https://www.gequhai.com/play/${id}`;
-      })();
-      const { data: html } = await axios.get(playUrl, { headers: SEARCH_HEADERS, timeout: REQUEST_TIMEOUT });
+      const playUrl = this.getPlayUrl(id, extra);
+      const html = await this.fetchPage(playUrl);
       const appData = extractAppData(html);
       const playId = String(appData.play_id || appData.mp3_id || id || '');
       let downloadUrl = '';
       if (playId) {
         const params = new URLSearchParams({ id: playId, type: '0' });
         const { data: apiData } = await axios.post('https://www.gequhai.com/api/music', params, {
-          headers: API_HEADERS,
+          headers: { ...API_HEADERS, Referer: playUrl, Cookie: this.cookieHeader() },
           timeout: REQUEST_TIMEOUT,
         });
         const apiUrl = apiData?.data?.url;
@@ -213,9 +236,10 @@ export class GequhaiProvider implements MusicProvider {
       if (!downloadUrl) {
         throw new Error('Failed to resolve download url');
       }
+      const verified = await validateAudioLink(downloadUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
       const cover = typeof appData.mp3_cover === 'string' ? appData.mp3_cover : undefined;
       return {
-        url: downloadUrl,
+        url: verified.url,
         type: extractExt(downloadUrl),
         cover,
       };
@@ -227,7 +251,7 @@ export class GequhaiProvider implements MusicProvider {
 
   async getLyric(id: string, extra?: unknown): Promise<GequhaiLyricData> {
     const playUrl = this.getPlayUrl(id, extra);
-    const { data: html } = await axios.get(playUrl, { headers: SEARCH_HEADERS, timeout: REQUEST_TIMEOUT });
+    const html = await this.fetchPage(playUrl);
     const $ = cheerio.load(html);
     const lrc = cleanLyric($('#content-lrc2').text().trim());
 
@@ -241,8 +265,10 @@ export class GequhaiProvider implements MusicProvider {
 
   private getPlayUrl(id: string, extra?: unknown) {
     const candidate = (extra as { playUrl?: unknown } | undefined)?.playUrl;
-    return typeof candidate === 'string' && candidate.trim()
-      ? candidate
-      : `https://www.gequhai.com/play/${id}`;
+    if (typeof candidate === 'string' && candidate.trim()) {
+      const url = new URL(candidate, SITE_URL);
+      if (url.origin === SITE_URL && /^\/play\/\d+\/?$/.test(url.pathname)) return url.href;
+    }
+    return `${SITE_URL}/play/${encodeURIComponent(id)}`;
   }
 }
