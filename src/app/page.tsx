@@ -13,6 +13,7 @@ import { PlaylistDrawer } from "@/components/PlaylistDrawer";
 import { FullscreenPlayerDrawer } from "@/components/FullscreenPlayerDrawer";
 import { DownloadTask } from "@/types/download";
 import axios from "axios";
+import { readSearchHistory, readSearchProvider, readPlaylist, savePreference, saveSearchProvider, samePlaylistSong } from "@/lib/search-preferences";
 
 type QualityOption = {
   value: string;
@@ -202,38 +203,18 @@ const PROVIDER_OPTIONS = [
 export default function Home() {
   const [query, setQuery] = useState("");
 
-  // 搜索历史，最多 5 条
-  const [searchHistory, setSearchHistory] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const saved = localStorage.getItem('coco-search-history');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [provider, setProvider] = useState("netease");
+  const [preferencesReady, setPreferencesReady] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem('coco-search-history', JSON.stringify(searchHistory));
-  }, [searchHistory]);
+    if (preferencesReady) savePreference('coco-search-history', searchHistory);
+  }, [searchHistory, preferencesReady]);
 
-  const [provider, setProvider] = useState<string>(() => {
-    if (typeof window === 'undefined') return "netease";
-    try {
-      return localStorage.getItem('coco-search-provider') || "netease";
-    } catch {
-      return "netease";
-    }
-  });
-
-  // 持久化搜索源
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem('coco-search-provider', provider);
-  }, [provider]);
+    if (preferencesReady) saveSearchProvider(provider);
+  }, [provider, preferencesReady]);
   const [providerMenuOpen, setProviderMenuOpen] = useState(false);
   const [results, setResults] = useState<MusicItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -260,31 +241,31 @@ export default function Home() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isPlaylistOpen, setIsPlaylistOpen] = useState(false);
 
-  // Playlist State
-  const [playlist, setPlaylist] = useState<MusicItem[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const saved = localStorage.getItem('coco-playlist');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [playlist, setPlaylist] = useState<MusicItem[]>([]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem('coco-playlist', JSON.stringify(playlist));
-  }, [playlist]);
+    let cancelled = false;
+    // Restore after hydration, before allowing effects to overwrite stored values.
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setSearchHistory(readSearchHistory());
+      setProvider(readSearchProvider(PROVIDER_OPTIONS.map(option => option.id), "netease"));
+      setPlaylist(readPlaylist());
+      setPreferencesReady(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (preferencesReady) savePreference('coco-playlist', playlist);
+  }, [playlist, preferencesReady]);
 
   const addToPlaylist = (item: MusicItem) => {
-    setPlaylist(prev => {
-      if (prev.some(p => p.id === item.id)) return prev;
-      return [...prev, item];
-    });
+    setPlaylist(prev => prev.some(song => samePlaylistSong(song, item)) ? prev : [...prev, item]);
   };
 
-  const removeFromPlaylist = (itemId: string) => {
-    setPlaylist(prev => prev.filter(p => p.id !== itemId));
+  const removeFromPlaylist = (item: MusicItem) => {
+    setPlaylist(prev => prev.filter(song => !samePlaylistSong(song, item)));
   };
 
   // Navbar 歌单按钮事件
@@ -333,6 +314,7 @@ export default function Home() {
     const q = (searchQuery ?? query).trim();
     const params = new URLSearchParams({
       q,
+      provider,
       limit: String(SEARCH_PAGE_SIZE),
       offset: String(offset),
     });
@@ -344,8 +326,9 @@ export default function Home() {
   };
 
   const performSearch = async (searchQuery: string) => {
-    if (!searchQuery.trim()) return;
-    // 保存到搜索历史（去重、最多 5 条）
+    searchQuery = searchQuery.trim();
+    if (!searchQuery || loading) return;
+    // 保存最近 100 条，展示最近 5 条
     setSearchHistory(prev => {
       const filtered = prev.filter(h => h !== searchQuery);
       return [searchQuery, ...filtered].slice(0, 100);
@@ -935,7 +918,6 @@ export default function Home() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
-                onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
                   placeholder="输入歌曲名、歌手或专辑..."
                   className="h-12 w-full rounded-xl border-none bg-transparent py-3 pl-10 pr-28 text-base leading-6 text-[#1b1b1c] outline-none placeholder:text-[#404752]/60 focus:ring-0 dark:text-[#f3f0ef] dark:placeholder:text-[#c6c6c7]/60"
               />
@@ -960,7 +942,8 @@ export default function Home() {
                 exit={{ opacity: 0, y: -5 }}
                 className="w-full max-w-2xl mt-3 px-3"
               >
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2" role="group" aria-label="搜索历史">
+                  <span className="mr-1 text-xs font-medium text-[#404752] dark:text-[#c6c6c7]">搜索历史:</span>
                   {searchHistory.slice(0, 5).map((term) => (
                     <div key={term} className="relative group">
                       <button
@@ -973,7 +956,8 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => setSearchHistory(prev => prev.filter(h => h !== term))}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 flex h-4 w-4 items-center justify-center rounded-full text-[#404752]/40 opacity-0 transition-opacity hover:text-[#ba1a1a] group-hover:opacity-100"
+                        aria-label={`删除搜索历史：${term}`}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 flex h-4 w-4 items-center justify-center rounded-full text-[#404752]/60 transition-colors hover:text-[#ba1a1a]"
                         title="删除"
                       >
                         <X className="h-3 w-3" />
@@ -1176,13 +1160,13 @@ export default function Home() {
                                 onClick={(e) => { e.stopPropagation(); addToPlaylist(item); }}
                                 className={cn(
                                   "flex h-9 w-9 cursor-pointer items-center justify-center rounded-full transition-colors",
-                                  playlist.some(p => p.id === item.id)
+                                  playlist.some(p => samePlaylistSong(p, item))
                                     ? "bg-rose-50 text-rose-500 dark:bg-rose-900/20 dark:text-rose-300"
                                     : "text-[#404752] hover:bg-[#005faa]/10 hover:text-rose-500 dark:text-[#c6c6c7] dark:hover:text-rose-300"
                                 )}
-                                title={playlist.some(p => p.id === item.id) ? "已加入歌单" : "添加到歌单"}
+                                title={playlist.some(p => samePlaylistSong(p, item)) ? "已加入歌单" : "添加到歌单"}
                               >
-                                <Heart className={cn("h-5 w-5", playlist.some(p => p.id === item.id) && "fill-current")} />
+                                <Heart className={cn("h-5 w-5", playlist.some(p => samePlaylistSong(p, item)) && "fill-current")} />
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); requestDownloadOne(item); }}

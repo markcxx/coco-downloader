@@ -2,7 +2,6 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ListMusic, Play, Trash2, Music } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import type { MusicItem } from '@/types/music';
 import Image from 'next/image';
 
@@ -11,7 +10,7 @@ interface PlaylistDrawerProps {
   onClose: () => void;
   items: MusicItem[];
   onPlay: (item: MusicItem) => void;
-  onRemove: (itemId: string) => void;
+  onRemove: (item: MusicItem) => void;
 }
 
 export function PlaylistDrawer({
@@ -68,7 +67,7 @@ export function PlaylistDrawer({
               ) : (
                 items.map((item) => (
                   <motion.div
-                    key={item.id}
+                    key={JSON.stringify([item.provider, item.id])}
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     className="group flex items-center gap-3 rounded-xl border border-black/5 bg-white p-3 shadow-[0px_4px_12px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-[1px] dark:border-white/10 dark:bg-[#303030]"
@@ -99,7 +98,7 @@ export function PlaylistDrawer({
                     </div>
 
                     <button
-                      onClick={(e) => { e.stopPropagation(); onRemove(item.id); }}
+                      onClick={(e) => { e.stopPropagation(); onRemove(item); }}
                       className="cursor-pointer rounded-full p-1.5 text-[#ba1a1a] opacity-0 transition-all hover:bg-[#ffdad6]/50 group-hover:opacity-100"
                       title="从歌单移除"
                     >
